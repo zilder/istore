@@ -1,0 +1,402 @@
+/*
+ * %type% type and functions
+ */
+CREATE FUNCTION %type%_in(cstring)
+    RETURNS %type%
+    AS 'istore'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION %type%_out(%type%)
+    RETURNS cstring
+    AS 'istore'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION %type%_send(%type%)
+    RETURNS bytea
+    AS 'istore'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION %type%_recv(internal)
+    RETURNS %type%
+    AS 'istore'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE TYPE %type% (
+    INPUT   = %type%_in,
+    OUTPUT  = %type%_out,
+    RECEIVE = %type%_recv,
+    SEND    = %type%_send,
+    STORAGE = EXTENDED
+);
+
+CREATE FUNCTION exist(%type%, integer)
+    RETURNS boolean
+    AS 'istore', '%type%_exist'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION fetchval(%type%, integer)
+    RETURNS %basetype%
+    AS 'istore', '%type%_fetchval'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION each(IN is %type%,
+    OUT key integer,
+    OUT value %basetype%)
+RETURNS SETOF record
+AS 'istore','%type%_each'
+LANGUAGE C STRICT IMMUTABLE;
+
+CREATE FUNCTION min_key(%type%)
+    RETURNS integer
+    AS 'istore', '%type%_min_key'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION max_key(%type%)
+    RETURNS integer
+    AS 'istore', '%type%_max_key'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION compact(%type%)
+    RETURNS %type%
+    AS 'istore', '%type%_compact'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION add(%type%, %type%)
+    RETURNS %type%
+    AS 'istore', '%type%_add'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION add(%type%, %basetype%)
+    RETURNS %type%
+    AS 'istore', '%type%_add_integer'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION subtract(%type%, %type%)
+    RETURNS %type%
+    AS 'istore', '%type%_subtract'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION subtract(%type%, %basetype%)
+    RETURNS %type%
+    AS 'istore', '%type%_subtract_integer'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION multiply(%type%, %type%)
+    RETURNS %type%
+    AS 'istore', '%type%_multiply'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION multiply(%type%, %basetype%)
+    RETURNS %type%
+    AS 'istore', '%type%_multiply_integer'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION divide(%type%, %type%)
+    RETURNS %type%
+    AS 'istore', '%type%_divide'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION divide(%type%, %basetype%)
+    RETURNS %type%
+    AS 'istore', '%type%_divide_integer'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION concat(%type%, %type%)
+    RETURNS %type%
+    AS 'istore', '%type%_concat'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION sum_up(%type%)
+    RETURNS bigint  /* Result type is bigint for both istore and bigistore */
+    AS 'istore', '%type%_sum_up'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION sum_up(%type%, integer)
+    RETURNS bigint
+    AS 'istore', '%type%_sum_up'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION fill_gaps(%type%, integer, %basetype% DEFAULT 0)
+    RETURNS %type%
+    AS 'istore', '%type%_fill_gaps'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION accumulate(%type%)
+    RETURNS %type%
+    AS 'istore', '%type%_accumulate'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION accumulate(%type%, integer)
+    RETURNS %type%
+    AS 'istore', '%type%_accumulate'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION istore_seed(integer, integer, %basetype%)
+    RETURNS %type%
+    AS 'istore', '%type%_seed'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION istore_val_larger(%type%, %type%)
+    RETURNS %type%
+    AS 'istore', '%type%_val_larger'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION istore_val_smaller(%type%, %type%)
+    RETURNS %type%
+    AS 'istore', '%type%_val_smaller'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION akeys(%type%)
+    RETURNS integer[]
+    AS 'istore' ,'%type%_akeys'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION avals(%type%)
+    RETURNS %basetype%[]
+    AS 'istore' ,'%type%_avals'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION skeys(%type%)
+    RETURNS setof integer
+    AS 'istore' ,'%type%_skeys'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION svals(%type%)
+    RETURNS setof %basetype%
+    AS 'istore' ,'%type%_svals'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION istore_length(%type%)
+    RETURNS integer
+    AS 'istore', '%type%_length'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION istore_to_json(%type%)
+RETURNS json
+AS 'istore', '%type%_to_json'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION istore_to_array(%type%)
+    RETURNS int[]
+    AS 'istore', '%type%_to_array'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION istore_to_matrix(%type%)
+    RETURNS int[]
+    AS 'istore', '%type%_to_matrix'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION slice(%type%, integer[])
+    RETURNS %type%
+    AS 'istore', '%type%_slice'
+    LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION slice_array(%type%, integer[])
+    RETURNS integer[]
+    AS 'istore', '%type%_slice_to_array'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION clamp_below(%type%,int)
+    RETURNS %type%
+    AS 'istore', '%type%_clamp_below'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION clamp_above(%type%,int)
+    RETURNS %type%
+    AS 'istore', '%type%_clamp_above'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION delete(%type%,int)
+    RETURNS %type%
+    AS 'istore', '%type%_delete'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION delete(%type%,int[])
+    RETURNS %type%
+    AS 'istore', '%type%_delete_array'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION exists_all(%type%,integer[])
+    RETURNS boolean
+    AS 'istore', '%type%_exists_all'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION exists_any(%type%,integer[])
+    RETURNS boolean
+    AS 'istore', '%type%_exists_any'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION delete(%type%,%type%)
+    RETURNS %type%
+    AS 'istore', '%type%_delete_istore'
+    LANGUAGE C IMMUTABLE STRICT;
+
+/* %type% aggregates */
+CREATE FUNCTION %type%_agg_finalfn_pairs(internal)
+    RETURNS istore
+    AS 'istore', 'istore_agg_finalfn_pairs'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION istore_sum_transfn(internal, %type%)
+    RETURNS internal
+    AS 'istore' ,'%type%_sum_transfn'
+    LANGUAGE C IMMUTABLE;
+
+CREATE FUNCTION istore_min_transfn(internal, %type%)
+    RETURNS internal
+    AS 'istore' ,'%type%_min_transfn'
+    LANGUAGE C IMMUTABLE;
+
+CREATE FUNCTION istore_max_transfn(internal, %type%)
+    RETURNS internal
+    AS 'istore' ,'%type%_max_transfn'
+    LANGUAGE C IMMUTABLE;
+
+CREATE FUNCTION %type%_avl_transfn(internal, int, %basetype%)
+    RETURNS internal
+    AS 'istore' ,'%type%_avl_transfn'
+    LANGUAGE C IMMUTABLE;
+
+CREATE FUNCTION %type%_avl_finalfn(internal)
+    RETURNS %type%
+    AS 'istore' ,'%type%_avl_finalfn'
+    LANGUAGE C IMMUTABLE;
+
+CREATE AGGREGATE SUM (
+    sfunc = istore_sum_transfn,
+    basetype = %type%,
+    stype = internal,
+    finalfunc = bigistore_agg_finalfn_pairs  /* Note that we use bigistore version
+                                              * of the function in both istore
+                                              * and bigistore */
+);
+
+CREATE AGGREGATE MIN (
+    sfunc = istore_min_transfn,
+    basetype = %type%,
+    stype = internal,
+    finalfunc = %type%_agg_finalfn_pairs
+);
+
+CREATE AGGREGATE MAX (
+    sfunc = istore_max_transfn,
+    basetype = %type%,
+    stype = internal,
+    finalfunc = %type%_agg_finalfn_pairs
+);
+
+CREATE AGGREGATE ISAGG(key int, value %basetype%) (
+    sfunc = %type%_avl_transfn,
+    stype = internal,
+    finalfunc = %type%_avl_finalfn
+);
+
+/* %type% operators */
+CREATE OPERATOR -> (
+    leftarg   = %type%,
+    rightarg  = integer,
+    procedure = fetchval
+);
+
+CREATE OPERATOR ? (
+    leftarg   = %type%,
+    rightarg  = integer,
+    procedure = exist
+);
+
+CREATE OPERATOR + (
+    leftarg   = %type%,
+    rightarg  = %type%,
+    procedure = add
+);
+
+CREATE OPERATOR + (
+    leftarg   = %type%,
+    rightarg  = %basetype%,
+    procedure = add
+);
+
+CREATE OPERATOR - (
+    leftarg   = %type%,
+    rightarg  = %type%,
+    procedure = subtract
+);
+
+CREATE OPERATOR - (
+    leftarg   = %type%,
+    rightarg  = %basetype%,
+    procedure = subtract
+);
+
+CREATE OPERATOR * (
+    leftarg   = %type%,
+    rightarg  = %type%,
+    procedure = multiply
+);
+
+CREATE OPERATOR * (
+    leftarg   = %type%,
+    rightarg  = %basetype%,
+    procedure = multiply
+);
+
+CREATE OPERATOR / (
+    leftarg   = %type%,
+    rightarg  = %type%,
+    procedure = divide
+);
+
+CREATE OPERATOR / (
+    leftarg   = %type%,
+    rightarg  = %basetype%,
+    procedure = divide
+);
+
+CREATE OPERATOR -> (
+    leftarg   = %type%,
+    rightarg  = integer[],
+    procedure = slice_array
+);
+
+CREATE OPERATOR %% (
+    rightarg  = %type%,
+    procedure = istore_to_array
+);
+
+CREATE OPERATOR %# (
+    rightarg  = %type%,
+    procedure = istore_to_matrix
+);
+
+CREATE OPERATOR ?& (
+    leftarg   = %type%,
+    rightarg  = integer[],
+    procedure = exists_all
+);
+
+CREATE OPERATOR ?| (
+    leftarg   = %type%,
+    rightarg  = integer[],
+    procedure = exists_any
+);
+
+CREATE OPERATOR || (
+    leftarg   = %type%,
+    rightarg  = %type%,
+    procedure = concat
+);
+
+/* GIN index support for %type% */
+CREATE FUNCTION gin_extract_%type%_key(internal, internal)
+RETURNS internal
+AS 'istore'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE OPERATOR CLASS %type%_key_ops
+DEFAULT FOR TYPE %type% USING gin
+AS
+    OPERATOR 9 ?(%type%, integer),
+    FUNCTION 1 btint4cmp(integer, integer),
+    FUNCTION 2 gin_extract_%type%_key(internal, internal),
+    FUNCTION 3 gin_extract_istore_key_query(internal, internal, int2, internal, internal),
+    FUNCTION 4 gin_consistent_istore_key(internal, int2, internal, int4, internal, internal),
+    STORAGE  integer;
