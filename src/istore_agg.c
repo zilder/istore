@@ -508,8 +508,8 @@ is_agg_state_copy(ISAggState *state, MemoryContext context)
     return res;
 }
 
-PG_FUNCTION_INFO_V1(istore_agg_sum_combine);
-Datum istore_agg_sum_combine(PG_FUNCTION_ARGS)
+static inline Datum
+istore_agg_combine(PG_FUNCTION_ARGS, ISAggType type)
 {
     ISAggState *  state1, *state2;
     MemoryContext agg_context;
@@ -533,69 +533,27 @@ Datum istore_agg_sum_combine(PG_FUNCTION_ARGS)
         PG_RETURN_POINTER(state1);
     }
 
-    state1 = istore_agg_state_accum(state1, state2->used, state2->pairs, AGG_SUM);
+    state1 = istore_agg_state_accum(state1, state2->used, state2->pairs, type);
 
     PG_RETURN_POINTER(state1);
+}
+
+PG_FUNCTION_INFO_V1(istore_agg_sum_combine);
+Datum istore_agg_sum_combine(PG_FUNCTION_ARGS)
+{
+    return istore_agg_combine(fcinfo, AGG_SUM);
 }
 
 PG_FUNCTION_INFO_V1(istore_agg_min_combine);
 Datum istore_agg_min_combine(PG_FUNCTION_ARGS)
 {
-    ISAggState *  state1, *state2;
-    MemoryContext agg_context;
-
-    if (!AggCheckCallContext(fcinfo, &agg_context))
-        elog(ERROR, "aggregate function called in non-aggregate context");
-
-    state1 = PG_ARGISNULL(0) ? NULL : (ISAggState *) PG_GETARG_POINTER(0);
-    state2 = PG_ARGISNULL(1) ? NULL : (ISAggState *) PG_GETARG_POINTER(1);
-
-    if (state1 == NULL && state2 == NULL)
-        PG_RETURN_NULL();
-
-    if (state2 == NULL)
-        PG_RETURN_POINTER(state1);
-
-    if (state1 == NULL)
-    {
-        state1 = is_agg_state_copy(state2, agg_context);
-
-        PG_RETURN_POINTER(state1);
-    }
-
-    state1 = istore_agg_state_accum(state1, state2->used, state2->pairs, AGG_MIN);
-
-    PG_RETURN_POINTER(state1);
+    return istore_agg_combine(fcinfo, AGG_MIN);
 }
 
 PG_FUNCTION_INFO_V1(istore_agg_max_combine);
 Datum istore_agg_max_combine(PG_FUNCTION_ARGS)
 {
-    ISAggState *  state1, *state2;
-    MemoryContext agg_context;
-
-    if (!AggCheckCallContext(fcinfo, &agg_context))
-        elog(ERROR, "aggregate function called in non-aggregate context");
-
-    state1 = PG_ARGISNULL(0) ? NULL : (ISAggState *) PG_GETARG_POINTER(0);
-    state2 = PG_ARGISNULL(1) ? NULL : (ISAggState *) PG_GETARG_POINTER(1);
-
-    if (state1 == NULL && state2 == NULL)
-        PG_RETURN_NULL();
-
-    if (state2 == NULL)
-        PG_RETURN_POINTER(state1);
-
-    if (state1 == NULL)
-    {
-        state1 = is_agg_state_copy(state2, agg_context);
-
-        PG_RETURN_POINTER(state1);
-    }
-
-    state1 = istore_agg_state_accum(state1, state2->used, state2->pairs, AGG_MAX);
-
-    PG_RETURN_POINTER(state1);
+    return istore_agg_combine(fcinfo, AGG_MAX);
 }
 
 /*
