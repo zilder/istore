@@ -30,7 +30,7 @@ PG_FUNCTION_INFO_V1(gin_extract_istore_key);
 Datum
 gin_extract_istore_key(PG_FUNCTION_ARGS)
 {
-    IStore *is = PG_GETARG_IS(0);
+    IStore *is = PG_GETARG_ISTORE(0);
     int32  *nentries = (int32 *) PG_GETARG_POINTER(1);
     Datum  *entries = NULL;
     IStorePair *pairs = FIRST_PAIR(is,IStorePair);
@@ -55,7 +55,7 @@ PG_FUNCTION_INFO_V1(gin_extract_bigistore_key);
 Datum
 gin_extract_bigistore_key(PG_FUNCTION_ARGS)
 {
-    BigIStore *is = PG_GETARG_BIGIS(0);
+    BigIStore *is = PG_GETARG_BIGISTORE(0);
     int32  *nentries = (int32 *) PG_GETARG_POINTER(1);
     Datum  *entries = NULL;
     BigIStorePair *pairs = FIRST_PAIR(is,BigIStorePair);

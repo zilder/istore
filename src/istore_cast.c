@@ -20,7 +20,7 @@ bigistore_to_istore(PG_FUNCTION_ARGS)
     int             index;
 
     creator = NULL;
-    is      = PG_GETARG_BIGIS(0);
+    is      = PG_GETARG_BIGISTORE(0);
     pairs   = FIRST_PAIR(is, BigIStorePair);
     creator = palloc0(sizeof *creator);
     index   = 0;
@@ -48,7 +48,7 @@ istore_to_big_istore(PG_FUNCTION_ARGS)
     int              index;
 
     creator = NULL;
-    is      = PG_GETARG_IS(0);
+    is      = PG_GETARG_ISTORE(0);
     pairs   = FIRST_PAIR(is, IStorePair);
     creator = palloc0(sizeof *creator);
     index   = 0;

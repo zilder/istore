@@ -266,7 +266,7 @@ istore_min_transfn(PG_FUNCTION_ARGS)
     ISAggState    *state;
     INIT_AGG_STATE(state);
 
-    PG_RETURN_POINTER(istore_agg_internal(state, PG_GETARG_IS(1), AGG_MIN));
+    PG_RETURN_POINTER(istore_agg_internal(state, PG_GETARG_ISTORE(1), AGG_MIN));
 }
 
 /*
@@ -278,7 +278,7 @@ bigistore_min_transfn(PG_FUNCTION_ARGS)
 {
     ISAggState    *state;
     INIT_AGG_STATE(state);
-    PG_RETURN_POINTER(bigistore_agg_internal(state, PG_GETARG_BIGIS(1), AGG_MIN));
+    PG_RETURN_POINTER(bigistore_agg_internal(state, PG_GETARG_BIGISTORE(1), AGG_MIN));
 }
 
 /*
@@ -290,7 +290,7 @@ istore_max_transfn(PG_FUNCTION_ARGS)
 {
     ISAggState    *state;
     INIT_AGG_STATE(state);
-    PG_RETURN_POINTER(istore_agg_internal(state, PG_GETARG_IS(1), AGG_MAX));
+    PG_RETURN_POINTER(istore_agg_internal(state, PG_GETARG_ISTORE(1), AGG_MAX));
 
 }
 
@@ -303,7 +303,7 @@ bigistore_max_transfn(PG_FUNCTION_ARGS)
 {
     ISAggState    *state;
     INIT_AGG_STATE(state);
-    PG_RETURN_POINTER(bigistore_agg_internal(state, PG_GETARG_BIGIS(1), AGG_MAX));
+    PG_RETURN_POINTER(bigistore_agg_internal(state, PG_GETARG_BIGISTORE(1), AGG_MAX));
 
 }
 
@@ -316,7 +316,7 @@ istore_sum_transfn(PG_FUNCTION_ARGS)
 {
     ISAggState    *state;
     INIT_AGG_STATE(state);
-    PG_RETURN_POINTER(istore_agg_internal(state, PG_GETARG_IS(1), AGG_SUM));
+    PG_RETURN_POINTER(istore_agg_internal(state, PG_GETARG_ISTORE(1), AGG_SUM));
 
 }
 
@@ -329,7 +329,7 @@ bigistore_sum_transfn(PG_FUNCTION_ARGS)
 {
     ISAggState    *state;
     INIT_AGG_STATE(state);
-    PG_RETURN_POINTER(bigistore_agg_internal(state, PG_GETARG_BIGIS(1), AGG_SUM));
+    PG_RETURN_POINTER(bigistore_agg_internal(state, PG_GETARG_BIGISTORE(1), AGG_SUM));
 
 }
 

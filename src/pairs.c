@@ -6,13 +6,13 @@ static inline int digits32(int32 num);
 static inline int digits64(int64 num);
 
 int
-is_pair_buf_len(IStorePair *pair)
+istore_pair_buf_len(IStorePair *pair)
 {
     return (digits32(pair->key) + digits32(pair->val) + BUFLEN_OFFSET);
 }
 
 int
-bigis_pair_buf_len(BigIStorePair *pair)
+bigistore_pair_buf_len(BigIStorePair *pair)
 {
     return (digits32(pair->key) + digits64(pair->val) + BUFLEN_OFFSET);
 }

@@ -27,5 +27,9 @@ bench/benchmarks*
 vendor
 regression.diffs
 regression.out
+
+# Auto generated files
 sql/istore.sql
 sql/bigistore.sql
+src/istore_type.c
+src/bigistore_type.c

@@ -17,7 +17,7 @@ istore_out(PG_FUNCTION_ARGS)
                  *walk;
     IStorePair   *pairs;
 
-    in = PG_GETARG_IS(0);
+    in = PG_GETARG_ISTORE(0);
 
     if (in->len == 0)
     {
@@ -104,7 +104,7 @@ PG_FUNCTION_INFO_V1(istore_send);
 Datum
 istore_send(PG_FUNCTION_ARGS)
 {
-    IStore *in = PG_GETARG_IS(0);
+    IStore *in = PG_GETARG_ISTORE(0);
     IStorePair *pairs= FIRST_PAIR(in, IStorePair);
     int i = 0;
     StringInfoData buf;
@@ -127,7 +127,7 @@ PG_FUNCTION_INFO_V1(istore_to_json);
 Datum
 istore_to_json(PG_FUNCTION_ARGS)
 {
-    IStore         *is = PG_GETARG_IS(0);
+    IStore         *is = PG_GETARG_ISTORE(0);
     IStorePair     *pairs;
     int             i;
     StringInfoData  dst;
@@ -166,7 +166,7 @@ bigistore_out(PG_FUNCTION_ARGS)
                   *walk;
     BigIStorePair *pairs;
 
-    in = PG_GETARG_BIGIS(0);
+    in = PG_GETARG_BIGISTORE(0);
 
     if (in->len == 0)
     {
@@ -255,7 +255,7 @@ PG_FUNCTION_INFO_V1(bigistore_send);
 Datum
 bigistore_send(PG_FUNCTION_ARGS)
 {
-    BigIStore *in = PG_GETARG_BIGIS(0);
+    BigIStore *in = PG_GETARG_BIGISTORE(0);
     BigIStorePair *pairs= FIRST_PAIR(in, BigIStorePair);
     int i = 0;
     StringInfoData buf;
@@ -278,7 +278,7 @@ PG_FUNCTION_INFO_V1(bigistore_to_json);
 Datum
 bigistore_to_json(PG_FUNCTION_ARGS)
 {
-    BigIStore      *is = PG_GETARG_BIGIS(0);
+    BigIStore      *is = PG_GETARG_BIGISTORE(0);
     BigIStorePair  *pairs;
     int             i;
     StringInfoData  dst;
@@ -306,3 +306,4 @@ bigistore_to_json(PG_FUNCTION_ARGS)
     appendStringInfoChar(&dst, '}');
     PG_RETURN_TEXT_P(cstring_to_text(dst.data));
 }
+

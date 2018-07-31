@@ -143,8 +143,8 @@ void           istore_pairs_insert(IStorePairs *pairs, int32 key, int32 val);
 int            istore_pairs_cmp(const void *a, const void *b);
 void           istore_tree_to_pairs(AvlNode *p, IStorePairs *pairs);
 IStorePair *   istore_find(IStore *is, int32 key, int *off_out);
-int            is_pair_buf_len(IStorePair *pair);
-int            bigis_pair_buf_len(BigIStorePair *pair);
+int            istore_pair_buf_len(IStorePair *pair);
+int            bigistore_pair_buf_len(BigIStorePair *pair);
 void           bigistore_pairs_init(BigIStorePairs *pairs, size_t initial_size);
 void           bigistore_pairs_insert(BigIStorePairs *pairs, int32 key, int64 val);
 int            bigistore_pairs_cmp(const void *a, const void *b);
@@ -173,10 +173,10 @@ int is_int32_arr_comp(const void *a, const void *b);
  * get the istore
  */
 
-#define PG_GETARG_IS(x) (IStore *) PG_DETOAST_DATUM(PG_GETARG_DATUM(x))
-#define PG_GETARG_BIGIS(x) (BigIStore *) PG_DETOAST_DATUM(PG_GETARG_DATUM(x))
-#define PG_GETARG_IS_COPY(x) (IStore *) PG_DETOAST_DATUM_COPY(PG_GETARG_DATUM(x))
-#define PG_GETARG_BIGIS_COPY(x) (BigIStore *) PG_DETOAST_DATUM_COPY(PG_GETARG_DATUM(x))
+#define PG_GETARG_ISTORE(x) (IStore *) PG_DETOAST_DATUM(PG_GETARG_DATUM(x))
+#define PG_GETARG_BIGISTORE(x) (BigIStore *) PG_DETOAST_DATUM(PG_GETARG_DATUM(x))
+#define PG_GETARG_ISTORE_COPY(x) (IStore *) PG_DETOAST_DATUM_COPY(PG_GETARG_DATUM(x))
+#define PG_GETARG_BIGISTORE_COPY(x) (BigIStore *) PG_DETOAST_DATUM_COPY(PG_GETARG_DATUM(x))
 
 /*
  * creates the internal representation from a pairs collection
