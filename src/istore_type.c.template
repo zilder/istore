@@ -7,51 +7,67 @@
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
 
-static inline Datum *%funcprefix%_key_val_datums(%typename% *is);
+typedef %typename%      Store;
+typedef %typename%Pair  StorePair;
+typedef %typename%Pairs StorePairs ;
+
+#define STORE_FUNCTION(FUNC) \
+    PG_FUNCTION_INFO_V1(%funcprefix%_ ## FUNC); \
+    Datum %funcprefix%_ ## FUNC(PG_FUNCTION_ARGS)
+
+#define FINALIZE_STORE        FINALIZE_%macropostfix%
+#define PG_GETARG_STORE       PG_GETARG_%macropostfix%
+#define PG_GETARG_STORE_COPY  PG_GETARG_%macropostfix%_COPY
+#define store_tree_to_pairs   %funcprefix%_tree_to_pairs
+#define store_pair_buf_len    %funcprefix%_pair_buf_len
+#define store_pairs_init      %funcprefix%_pairs_init   
+#define store_pairs_insert    %funcprefix%_pairs_insert
+
+static inline Datum *store_key_val_datums(Store *is);
 
 /*
- * combine two %typename%s by applying PGFunction mergefunc on values where key match
+ * combine two Stores by applying PGFunction mergefunc on values where key match
  * if PGFunction miss1func is not NULL values for keys which doesn't exists on
- * first istore is added to the result by applying miss1func to the value
- * while values for keys which doesn't exists on second istore will be added without
+ * first Store is added to the result by applying miss1func to the value
+ * while values for keys which doesn't exists on second Store will be added without
  * change.
  * if PGFunction miss1func is NULL the result will only contain matching keys
  */
-%typename% *
-%funcprefix%_merge(%typename% *arg1, %typename% *arg2, PGFunction mergefunc, PGFunction miss1func)
+static Store *
+store_merge(Store *arg1, Store *arg2, PGFunction mergefunc, PGFunction miss1func)
 {
-    %typename% *     result;
-    %typename%Pair * pairs1, *pairs2;
-    %typename%Pairs *creator = NULL;
-    int             index1 = 0, index2 = 0;
+    Store      *result;
+    StorePair  *pairs1, *pairs2;
+    StorePairs *creator = NULL;
+    int         index1 = 0, index2 = 0;
 
-    pairs1  = FIRST_PAIR(arg1, %typename%Pair);
-    pairs2  = FIRST_PAIR(arg2, %typename%Pair);
+    pairs1  = FIRST_PAIR(arg1, StorePair);
+    pairs2  = FIRST_PAIR(arg2, StorePair);
     creator = palloc0(sizeof *creator);
 
-    %funcprefix%_pairs_init(creator, MIN(arg1->len + arg2->len, 200));
+    store_pairs_init(creator, MIN(arg1->len + arg2->len, 200));
 
     while (index1 < arg1->len && index2 < arg2->len)
     {
         if (pairs1[index1].key < pairs2[index2].key)
         {
             if (miss1func != NULL)
-                %funcprefix%_pairs_insert(creator, pairs1[index1].key, pairs1[index1].val);
+                store_pairs_insert(creator, pairs1[index1].key, pairs1[index1].val);
             ++index1;
         }
         else if (pairs1[index1].key > pairs2[index2].key)
         {
             if (miss1func != NULL)
-                %funcprefix%_pairs_insert(creator, pairs2[index2].key, DirectFunctionCall1(miss1func, pairs2[index2].val));
+                store_pairs_insert(creator, pairs2[index2].key, DirectFunctionCall1(miss1func, pairs2[index2].val));
             ++index2;
         }
         else
         {
             if (mergefunc != NULL)
-                %funcprefix%_pairs_insert(
+                store_pairs_insert(
                   creator, pairs1[index1].key, DirectFunctionCall2(mergefunc, pairs1[index1].val, pairs2[index2].val));
             else
-                %funcprefix%_pairs_insert(creator, pairs1[index1].key, pairs2[index2].val);
+                store_pairs_insert(creator, pairs1[index1].key, pairs2[index2].val);
             ++index1;
             ++index2;
         }
@@ -61,18 +77,18 @@ static inline Datum *%funcprefix%_key_val_datums(%typename% *is);
     {
         while (index1 < arg1->len)
         {
-            %funcprefix%_pairs_insert(creator, pairs1[index1].key, pairs1[index1].val);
+            store_pairs_insert(creator, pairs1[index1].key, pairs1[index1].val);
             ++index1;
         }
 
         while (index2 < arg2->len)
         {
-            %funcprefix%_pairs_insert(creator, pairs2[index2].key, DirectFunctionCall1(miss1func, pairs2[index2].val));
+            store_pairs_insert(creator, pairs2[index2].key, DirectFunctionCall1(miss1func, pairs2[index2].val));
             ++index2;
         }
     }
 
-    FINALIZE_%macropostfix%(result, creator);
+    FINALIZE_STORE(result, creator);
 
     return result;
 }
@@ -80,113 +96,107 @@ static inline Datum *%funcprefix%_key_val_datums(%typename% *is);
 /*
  * apply PGFunction applyfunc on each value of arg1 with arg2
  */
-%typename% *
-%funcprefix%_apply_datum(%typename% *arg1, Datum arg2, PGFunction applyfunc)
+static Store *
+store_apply_datum(Store *arg1, Datum arg2, PGFunction applyfunc)
 {
-    %typename% *     result;
-    %typename%Pair * pairs;
-    %typename%Pairs *creator = NULL;
+    Store      *result;
+    StorePair  *pairs;
+    StorePairs *creator = NULL;
     int             index   = 0;
 
-    pairs   = FIRST_PAIR(arg1, %typename%Pair);
+    pairs   = FIRST_PAIR(arg1, StorePair);
     creator = palloc0(sizeof *creator);
 
-    %funcprefix%_pairs_init(creator, arg1->len);
+    store_pairs_init(creator, arg1->len);
     while (index < arg1->len)
     {
-        %funcprefix%_pairs_insert(creator, pairs[index].key, DirectFunctionCall2(applyfunc, pairs[index].val, arg2));
+        store_pairs_insert(creator, pairs[index].key, DirectFunctionCall2(applyfunc, pairs[index].val, arg2));
         ++index;
     }
-    FINALIZE_%macropostfix%(result, creator);
+    FINALIZE_STORE(result, creator);
 
     return result;
 }
 
 /*
- * get the smallest key from an %typename% 
+ * get the smallest key from an Store 
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_min_key);
-Datum
-%funcprefix%_min_key(PG_FUNCTION_ARGS)
+STORE_FUNCTION(min_key)
 {
-    %typename% *istore;
+    Store  *store;
     int32   key;
 
-    istore = PG_GETARG_%macropostfix%(0);
-    if (istore->len == 0) 
+    store = PG_GETARG_STORE(0);
+    if (store->len == 0) 
     {
         PG_RETURN_NULL();
     }
     else 
     {
-        key = FIRST_PAIR(istore, %typename%Pair)[0].key;
+        key = FIRST_PAIR(store, StorePair)[0].key;
         PG_RETURN_INT32(key);
     }
 }
 
 /*
- * get the biggest key from an %typename%
+ * get the biggest key from an Store
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_max_key);
-Datum
-%funcprefix%_max_key(PG_FUNCTION_ARGS)
+STORE_FUNCTION(max_key)
 {
-    %typename% *istore;
+    Store  *store;
     int32   key;
 
-    istore = PG_GETARG_%macropostfix%(0);
-    if (istore->len == 0) 
+    store = PG_GETARG_STORE(0);
+    if (store->len == 0) 
     {
         PG_RETURN_NULL();
     }
     else 
     {
-        key = LAST_PAIR(istore, %typename%Pair)->key;
+        key = LAST_PAIR(store, StorePair)->key;
         PG_RETURN_INT32(key);
     }
 }
 
 /*
- * remove zero values from %typename%
+ * remove zero values from Store
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_compact);
-Datum %funcprefix%_compact(PG_FUNCTION_ARGS)
+STORE_FUNCTION(compact)
 {
-    %typename% *     is, *result;
-    %typename%Pair * pairs;
-    int             index;
-    %typename%Pairs *creator;
+    Store      *is, *result;
+    StorePair  *pairs;
+    int         index;
+    StorePairs *creator;
 
-    is      = PG_GETARG_%macropostfix%(0);
-    pairs   = FIRST_PAIR(is, %typename%Pair);
+    is      = PG_GETARG_STORE(0);
+    pairs   = FIRST_PAIR(is, StorePair);
     index   = 0;
     creator = NULL;
     creator = palloc0(sizeof *creator);
-    %funcprefix%_pairs_init(creator, is->len);
+    store_pairs_init(creator, is->len);
     while (index < is->len)
     {
         if (pairs[index].val != 0)
-            %funcprefix%_pairs_insert(creator, pairs[index].key, pairs[index].val);
+            store_pairs_insert(creator, pairs[index].key, pairs[index].val);
         ++index;
     }
-    FINALIZE_%macropostfix%(result, creator);
+    FINALIZE_STORE(result, creator);
     PG_RETURN_POINTER(result);
 }
 
 /*
- * Sum the values of a %typename%
+ * Sum the values of a Store
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_sum_up);
-Datum %funcprefix%_sum_up(PG_FUNCTION_ARGS)
+STORE_FUNCTION(sum_up)
 {
-    %typename% *    is;
-    %typename%Pair *pairs;
-    int64          result;
-    int            index;
-    int32          end_key;
+    Store     *is;
+    StorePair *pairs;
+    int64      result;
+    int        index;
+    int32      end_key;
 
-    is     = PG_GETARG_%macropostfix%(0);
-    pairs  = FIRST_PAIR(is, %typename%Pair);
+    is     = PG_GETARG_STORE(0);
+    pairs  = FIRST_PAIR(is, StorePair);
     result = 0;
     index  = 0;
 
@@ -209,13 +219,13 @@ Datum %funcprefix%_sum_up(PG_FUNCTION_ARGS)
 }
 
 /*
- * Binary search the key in the %typename%
+ * Binary search the key in the Store
  */
-%typename%Pair *
-%funcprefix%_find(%typename% *is, int32 key, int *off_out)
+static StorePair *
+store_find(Store *is, int32 key, int *off_out)
 {
-    %typename%Pair *pairs  = FIRST_PAIR(is, %typename%Pair);
-    %typename%Pair *result = NULL;
+    StorePair *pairs  = FIRST_PAIR(is, StorePair);
+    StorePair *result = NULL;
     int            low    = 0;
     int            max    = is->len;
     int            mid    = 0;
@@ -228,7 +238,7 @@ Datum %funcprefix%_sum_up(PG_FUNCTION_ARGS)
             low = mid + 1;
         else
         {
-            result = FIRST_PAIR(is, %typename%Pair) + mid;
+            result = FIRST_PAIR(is, StorePair) + mid;
             if (off_out)
                 *off_out = mid;
             break;
@@ -238,15 +248,14 @@ Datum %funcprefix%_sum_up(PG_FUNCTION_ARGS)
 }
 
 /*
- * Implementation of operator ?(%typename%, int)
+ * Implementation of operator ?(Store, int)
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_exist);
-Datum %funcprefix%_exist(PG_FUNCTION_ARGS)
+STORE_FUNCTION(exist)
 {
     bool       found;
-    %typename% *in  = PG_GETARG_%macropostfix%(0);
+    Store *in  = PG_GETARG_STORE(0);
     int32      key = PG_GETARG_INT32(1);
-    if (%funcprefix%_find(in, key, NULL))
+    if (store_find(in, key, NULL))
         found = true;
     else
         found = false;
@@ -254,168 +263,157 @@ Datum %funcprefix%_exist(PG_FUNCTION_ARGS)
 }
 
 /*
- * Implementation of operator ->(%typename%, int)
+ * Implementation of operator ->(Store, int)
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_fetchval);
-Datum %funcprefix%_fetchval(PG_FUNCTION_ARGS)
+STORE_FUNCTION(fetchval)
 {
-    %typename%Pair *pair;
-    %typename% *    in  = PG_GETARG_%macropostfix%(0);
+    StorePair *pair;
+    Store *    in  = PG_GETARG_STORE(0);
     int32          key = PG_GETARG_INT32(1);
-    if ((pair = %funcprefix%_find(in, key, NULL)) == NULL)
+    if ((pair = store_find(in, key, NULL)) == NULL)
         PG_RETURN_NULL();
     else
         PG_RETURN_INT64(pair->val);
 }
 
 /*
- * Merge two %typename%s by addition of values
+ * Merge two Stores by addition of values
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_add);
-Datum %funcprefix%_add(PG_FUNCTION_ARGS)
+STORE_FUNCTION(add)
 {
-    %typename% *is1, *is2;
+    Store *is1, *is2;
 
-    is1 = PG_GETARG_%macropostfix%(0);
-    is2 = PG_GETARG_%macropostfix%(1);
+    is1 = PG_GETARG_STORE(0);
+    is2 = PG_GETARG_STORE(1);
 
-    PG_RETURN_POINTER(%funcprefix%_merge(is1, is2, int8pl, int8up));
+    PG_RETURN_POINTER(store_merge(is1, is2, int8pl, int8up));
 }
 
 /*
- * Increment values of a %typename%
+ * Increment values of a Store
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_add_integer);
-Datum %funcprefix%_add_integer(PG_FUNCTION_ARGS)
+STORE_FUNCTION(add_integer)
 {
-    %typename% *is;
+    Store *is;
     Datum      int_arg;
 
-    is      = PG_GETARG_%macropostfix%(0);
+    is      = PG_GETARG_STORE(0);
     int_arg = PG_GETARG_DATUM(1);
 
-    PG_RETURN_POINTER(%funcprefix%_apply_datum(is, int_arg, int8pl));
+    PG_RETURN_POINTER(store_apply_datum(is, int_arg, int8pl));
 }
 
 /*
- * Merge two %typename%s by subtracting
+ * Merge two Stores by subtracting
  *
- * Keys which doesn't exists on first %typename% is added to the results
+ * Keys which doesn't exists on first Store is added to the results
  * a treated as if their value is zero
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_subtract);
-Datum %funcprefix%_subtract(PG_FUNCTION_ARGS)
+STORE_FUNCTION(subtract)
 {
-    %typename% *is1, *is2;
+    Store *is1, *is2;
 
-    is1 = PG_GETARG_%macropostfix%(0);
-    is2 = PG_GETARG_%macropostfix%(1);
+    is1 = PG_GETARG_STORE(0);
+    is2 = PG_GETARG_STORE(1);
 
-    PG_RETURN_POINTER(%funcprefix%_merge(is1, is2, int8mi, int8um));
+    PG_RETURN_POINTER(store_merge(is1, is2, int8mi, int8um));
 }
 
 /*
- * Decrement values of a %typename%
+ * Decrement values of a Store
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_subtract_integer);
-Datum %funcprefix%_subtract_integer(PG_FUNCTION_ARGS)
+STORE_FUNCTION(subtract_integer)
 {
-    %typename% *is;
+    Store *is;
     Datum      int_arg;
 
-    is      = PG_GETARG_%macropostfix%(0);
+    is      = PG_GETARG_STORE(0);
     int_arg = PG_GETARG_DATUM(1);
 
-    PG_RETURN_POINTER(%funcprefix%_apply_datum(is, int_arg, int8mi));
+    PG_RETURN_POINTER(store_apply_datum(is, int_arg, int8mi));
 }
 
 /*
- * Multiply values of two %typename%s
+ * Multiply values of two Stores
  *
- * The two %typename%s should have the same keys. The keys which exist on only
- * one %typename% are omitted.
+ * The two Stores should have the same keys. The keys which exist on only
+ * one Store are omitted.
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_multiply);
-Datum %funcprefix%_multiply(PG_FUNCTION_ARGS)
+STORE_FUNCTION(multiply)
 {
-    %typename% *is1, *is2;
+    Store *is1, *is2;
 
-    is1 = PG_GETARG_%macropostfix%(0);
-    is2 = PG_GETARG_%macropostfix%(1);
+    is1 = PG_GETARG_STORE(0);
+    is2 = PG_GETARG_STORE(1);
 
-    PG_RETURN_POINTER(%funcprefix%_merge(is1, is2, int8mul, NULL));
+    PG_RETURN_POINTER(store_merge(is1, is2, int8mul, NULL));
 }
 
 /*
- * Multiply values of a %typename%
+ * Multiply values of a Store
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_multiply_integer);
-Datum %funcprefix%_multiply_integer(PG_FUNCTION_ARGS)
+STORE_FUNCTION(multiply_integer)
 {
-    %typename% *is;
+    Store *is;
     Datum      int_arg;
 
-    is      = PG_GETARG_%macropostfix%(0);
+    is      = PG_GETARG_STORE(0);
     int_arg = PG_GETARG_DATUM(1);
 
-    PG_RETURN_POINTER(%funcprefix%_apply_datum(is, int_arg, int8mul));
+    PG_RETURN_POINTER(store_apply_datum(is, int_arg, int8mul));
 }
 
 /*
  * Divide values of two %typenames%s
  *
- * The two %typename%s should have the same keys.  The keys which exist on only
- * one %typename% are omitted.
+ * The two Stores should have the same keys.  The keys which exist on only
+ * one Store are omitted.
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_divide);
-Datum %funcprefix%_divide(PG_FUNCTION_ARGS)
+STORE_FUNCTION(divide)
 {
-    %typename% *is1, *is2;
+    Store *is1, *is2;
 
-    is1 = PG_GETARG_%macropostfix%(0);
-    is2 = PG_GETARG_%macropostfix%(1);
+    is1 = PG_GETARG_STORE(0);
+    is2 = PG_GETARG_STORE(1);
 
-    PG_RETURN_POINTER(%funcprefix%_merge(is1, is2, int8div, NULL));
+    PG_RETURN_POINTER(store_merge(is1, is2, int8div, NULL));
 }
 
 /*
- * Divide values of %typename%
+ * Divide values of Store
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_divide_integer);
-Datum %funcprefix%_divide_integer(PG_FUNCTION_ARGS)
+STORE_FUNCTION(divide_integer)
 {
-    %typename% *is;
+    Store *is;
     Datum      int_arg;
 
-    is      = PG_GETARG_%macropostfix%(0);
+    is      = PG_GETARG_STORE(0);
     int_arg = PG_GETARG_DATUM(1);
 
-    PG_RETURN_POINTER(%funcprefix%_apply_datum(is, int_arg, int8div));
+    PG_RETURN_POINTER(store_apply_datum(is, int_arg, int8div));
 }
 
 /*
- * concat two %typename%s
+ * concat two Stores
  *
  * duplicate keys get overwritten
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_concat);
-Datum %funcprefix%_concat(PG_FUNCTION_ARGS)
+STORE_FUNCTION(concat)
 {
-    %typename% *is1, *is2;
+    Store *is1, *is2;
 
-    is1 = PG_GETARG_%macropostfix%(0);
-    is2 = PG_GETARG_%macropostfix%(1);
+    is1 = PG_GETARG_STORE(0);
+    is2 = PG_GETARG_STORE(1);
 
-    PG_RETURN_POINTER(%funcprefix%_merge(is1, is2, NULL, int8up));
+    PG_RETURN_POINTER(store_merge(is1, is2, NULL, int8up));
 }
 
 /*
- * create a %typename% from an intarray by counting elements
+ * create a Store from an intarray by counting elements
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_from_intarray);
-Datum %funcprefix%_from_intarray(PG_FUNCTION_ARGS)
+STORE_FUNCTION(from_intarray)
 {
-    %typename% *     result;
+    Store *     result;
     Datum *         i_data;
     bool *          nulls;
     int             n, s = 0;
@@ -424,7 +422,7 @@ Datum %funcprefix%_from_intarray(PG_FUNCTION_ARGS)
     char            i_typalign;
     Oid             i_eltype;
     AvlNode *       tree;
-    %typename%Pairs *pairs;
+    StorePairs *pairs;
     AvlNode *       position;
     int             key, i;
 
@@ -463,26 +461,26 @@ Datum %funcprefix%_from_intarray(PG_FUNCTION_ARGS)
     }
 
     pairs = palloc0(sizeof *pairs);
-    %funcprefix%_pairs_init(pairs, s);
-    %funcprefix%_tree_to_pairs(tree, pairs);
+    store_pairs_init(pairs, s);
+    store_tree_to_pairs(tree, pairs);
     istore_make_empty(tree);
 
-    FINALIZE_%macropostfix%(result, pairs);
+    FINALIZE_STORE(result, pairs);
     PG_RETURN_POINTER(result);
 }
 
 /*
- * %typename% from key and value intarrays
+ * Store from key and value intarrays
  * bot arrays must have the same length, NULLs are omitted
  * duplicate keys result in added values
  */
 static Datum
-%funcprefix%_add_from_int_arrays(ArrayType *input1, ArrayType *input2)
+store_add_from_int_arrays(ArrayType *input1, ArrayType *input2)
 {
-    %typename% *     out;
+    Store *     out;
     Datum *         i_data1, *i_data2;
     bool *          nulls1, *nulls2;
-    %typename%Pairs *pairs;
+    StorePairs *pairs;
     int             i, n = 0, n1, n2;
     int16           i_typlen1, i_typlen2;
     bool            i_typbyval1, i_typbyval2;
@@ -518,6 +516,7 @@ static Datum
         {
             case INT2OID: key = DatumGetInt16(i_data1[i]); break;
             case INT4OID: key = DatumGetInt32(i_data1[i]); break;
+            case INT8OID: key = DatumGetInt64(i_data2[i]); break;
             default: elog(ERROR, "unsupported array type");
         }
         switch (i_eltype2)
@@ -540,19 +539,18 @@ static Datum
     }
 
     pairs = palloc0(sizeof *pairs);
-    %funcprefix%_pairs_init(pairs, n);
-    %funcprefix%_tree_to_pairs(tree, pairs);
+    store_pairs_init(pairs, n);
+    store_tree_to_pairs(tree, pairs);
     istore_make_empty(tree);
 
-    FINALIZE_%macropostfix%(out, pairs);
+    FINALIZE_STORE(out, pairs);
     PG_RETURN_POINTER(out);
 }
 
 /*
- * %typename% from key and value intarrays
+ * Store from key and value intarrays
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_array_add);
-Datum %funcprefix%_array_add(PG_FUNCTION_ARGS)
+STORE_FUNCTION(array_add)
 {
     Datum      result;
     ArrayType *input1, *input2;
@@ -562,7 +560,7 @@ Datum %funcprefix%_array_add(PG_FUNCTION_ARGS)
 
     input1 = PG_GETARG_ARRAYTYPE_P(0);
     input2 = PG_GETARG_ARRAYTYPE_P(1);
-    result = %funcprefix%_add_from_int_arrays(input1, input2);
+    result = store_add_from_int_arrays(input1, input2);
     if (result == 0)
         PG_RETURN_NULL();
 
@@ -573,19 +571,19 @@ Datum %funcprefix%_array_add(PG_FUNCTION_ARGS)
  * Common initialization function for the various set-returning
  * funcs. fcinfo is only passed if the function is to return a
  * composite; it will be used to look up the return tupledesc.
- * we stash a copy of the %typename% in the multi-call context in
+ * we stash a copy of the Store in the multi-call context in
  * case it was originally toasted.
  */
 static void
-setup_firstcall(FuncCallContext *funcctx, %typename% *is, FunctionCallInfoData *fcinfo)
+setup_firstcall(FuncCallContext *funcctx, Store *is, FunctionCallInfoData *fcinfo)
 {
     MemoryContext oldcontext;
-    %typename% *   st;
+    Store *   st;
 
     oldcontext = MemoryContextSwitchTo(funcctx->multi_call_memory_ctx);
 
-    st = palloc0(ISTORE_SIZE(is, %typename%Pair));
-    memcpy(st, is, ISTORE_SIZE(is, %typename%Pair));
+    st = palloc0(ISTORE_SIZE(is, StorePair));
+    memcpy(st, is, ISTORE_SIZE(is, StorePair));
 
     funcctx->user_fctx = (void *) st;
 
@@ -606,25 +604,24 @@ setup_firstcall(FuncCallContext *funcctx, %typename% *is, FunctionCallInfoData *
 /*
  * return keys and values as a set
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_each);
-Datum %funcprefix%_each(PG_FUNCTION_ARGS)
+STORE_FUNCTION(each)
 {
     FuncCallContext *funcctx;
-    %typename% *      is;
+    Store *      is;
     int              i;
-    %typename%Pair *  pairs;
+    StorePair *  pairs;
 
     if (SRF_IS_FIRSTCALL())
     {
-        is      = PG_GETARG_%macropostfix%(0);
+        is      = PG_GETARG_STORE(0);
         funcctx = SRF_FIRSTCALL_INIT();
         setup_firstcall(funcctx, is, fcinfo);
     }
 
     funcctx = SRF_PERCALL_SETUP();
-    is      = (%typename% *) funcctx->user_fctx;
+    is      = (Store *) funcctx->user_fctx;
     i       = funcctx->call_cntr;
-    pairs   = FIRST_PAIR(is, %typename%Pair);
+    pairs   = FIRST_PAIR(is, StorePair);
 
     if (i < is->len)
     {
@@ -646,60 +643,58 @@ Datum %funcprefix%_each(PG_FUNCTION_ARGS)
 /*
  * fill missing keys in a range
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_fill_gaps);
-Datum %funcprefix%_fill_gaps(PG_FUNCTION_ARGS)
+STORE_FUNCTION(fill_gaps)
 {
 
-    %typename% *    is, *result;
-    %typename%Pair *pairs;
+    Store *    is, *result;
+    StorePair *pairs;
 
-    %typename%Pairs *creator = NULL;
+    StorePairs *creator = NULL;
 
     int up_to, fill_with, index1 = 0, index2 = 0;
 
     if (PG_ARGISNULL(0))
         PG_RETURN_NULL();
 
-    is    = PG_GETARG_%macropostfix%(0);
+    is    = PG_GETARG_STORE(0);
     up_to = PG_GETARG_INT32(1);
 
     fill_with = PG_GETARG_INT64(2);
-    pairs     = FIRST_PAIR(is, %typename%Pair);
+    pairs     = FIRST_PAIR(is, StorePair);
     creator   = palloc0(sizeof *creator);
 
     if (up_to < 0)
         elog(ERROR, "parameter upto must be >= 0");
 
-    %funcprefix%_pairs_init(creator, up_to + 1);
+    store_pairs_init(creator, up_to + 1);
 
     for (index1 = 0; index1 <= up_to; ++index1)
     {
         if (index2 < is->len && index1 == pairs[index2].key)
         {
-            %funcprefix%_pairs_insert(creator, pairs[index2].key, pairs[index2].val);
+            store_pairs_insert(creator, pairs[index2].key, pairs[index2].val);
             ++index2;
         }
         else
         {
-            %funcprefix%_pairs_insert(creator, index1, fill_with);
+            store_pairs_insert(creator, index1, fill_with);
         }
     }
 
-    FINALIZE_%macropostfix%(result, creator);
+    FINALIZE_STORE(result, creator);
     PG_RETURN_POINTER(result);
 }
 
 /*
  * rolling sum over keys
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_accumulate);
-Datum %funcprefix%_accumulate(PG_FUNCTION_ARGS)
+STORE_FUNCTION(accumulate)
 {
 
-    %typename% *    is, *result;
-    %typename%Pair *pairs;
+    Store *    is, *result;
+    StorePair *pairs;
 
-    %typename%Pairs *creator = NULL;
+    StorePairs *creator = NULL;
 
     int    index1 = 0, index2 = 0;
     size_t size      = 0;
@@ -709,9 +704,9 @@ Datum %funcprefix%_accumulate(PG_FUNCTION_ARGS)
     if (PG_ARGISNULL(0))
         PG_RETURN_NULL();
 
-    is = PG_GETARG_%macropostfix%(0);
+    is = PG_GETARG_STORE(0);
 
-    pairs   = FIRST_PAIR(is, %typename%Pair);
+    pairs   = FIRST_PAIR(is, StorePair);
     creator = palloc0(sizeof *creator);
 
     if (is->len > 0)
@@ -721,7 +716,7 @@ Datum %funcprefix%_accumulate(PG_FUNCTION_ARGS)
         size      = start_key > end_key ? 0 : (end_key - start_key + 1);
     }
 
-    %funcprefix%_pairs_init(creator, size);
+    store_pairs_init(creator, size);
 
     for (index1 = start_key; index1 <= end_key; ++index1)
     {
@@ -731,23 +726,22 @@ Datum %funcprefix%_accumulate(PG_FUNCTION_ARGS)
             sum = DirectFunctionCall2(int8pl, sum, pairs[index2].val);
             ++index2;
         }
-        %funcprefix%_pairs_insert(creator, index1, sum);
+        store_pairs_insert(creator, index1, sum);
     }
 
-    FINALIZE_%macropostfix%(result, creator);
+    FINALIZE_STORE(result, creator);
     PG_RETURN_POINTER(result);
 }
 
 /*
- * construct a %typename% with a key range and a fixed value
+ * construct a Store with a key range and a fixed value
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_seed);
-Datum %funcprefix%_seed(PG_FUNCTION_ARGS)
+STORE_FUNCTION(seed)
 {
 
-    %typename% *result;
+    Store *result;
 
-    %typename%Pairs *creator = NULL;
+    StorePairs *creator = NULL;
 
     int from, up_to, fill_with, index1 = 0;
 
@@ -765,58 +759,55 @@ Datum %funcprefix%_seed(PG_FUNCTION_ARGS)
     if (from < 0)
         elog(ERROR, "parameter from must be >= 0");
 
-    %funcprefix%_pairs_init(creator, up_to - from + 1);
+    store_pairs_init(creator, up_to - from + 1);
 
     for (index1 = from; index1 <= up_to; ++index1)
     {
-        %funcprefix%_pairs_insert(creator, index1, fill_with);
+        store_pairs_insert(creator, index1, fill_with);
     }
 
-    FINALIZE_%macropostfix%(result, creator);
+    FINALIZE_STORE(result, creator);
     PG_RETURN_POINTER(result);
 }
 
 /*
- * Merge two %typename%s by extraccting the bigger values
+ * Merge two Stores by extraccting the bigger values
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_val_larger);
-Datum %funcprefix%_val_larger(PG_FUNCTION_ARGS)
+STORE_FUNCTION(val_larger)
 {
-    %typename% *is1, *is2;
+    Store *is1, *is2;
 
-    is1 = PG_GETARG_%macropostfix%(0);
-    is2 = PG_GETARG_%macropostfix%(1);
+    is1 = PG_GETARG_STORE(0);
+    is2 = PG_GETARG_STORE(1);
 
-    PG_RETURN_POINTER(%funcprefix%_merge(is1, is2, int8larger, int8up));
+    PG_RETURN_POINTER(store_merge(is1, is2, int8larger, int8up));
 }
 
 /*
- * Merge two %typename%s by extraccting the smaller values
+ * Merge two Stores by extraccting the smaller values
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_val_smaller);
-Datum %funcprefix%_val_smaller(PG_FUNCTION_ARGS)
+STORE_FUNCTION(val_smaller)
 {
-    %typename% *is1, *is2;
+    Store *is1, *is2;
 
-    is1 = PG_GETARG_%macropostfix%(0);
-    is2 = PG_GETARG_%macropostfix%(1);
+    is1 = PG_GETARG_STORE(0);
+    is2 = PG_GETARG_STORE(1);
 
-    PG_RETURN_POINTER(%funcprefix%_merge(is1, is2, int8smaller, int8up));
+    PG_RETURN_POINTER(store_merge(is1, is2, int8smaller, int8up));
 }
 
 /*
  * return array of keys
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_akeys);
-Datum %funcprefix%_akeys(PG_FUNCTION_ARGS)
+STORE_FUNCTION(akeys)
 {
-    %typename% *    is;
-    %typename%Pair *pairs;
+    Store *    is;
+    StorePair *pairs;
     Datum *        d;
     ArrayType *    a;
     int            index;
 
-    is    = PG_GETARG_%macropostfix%(0);
+    is    = PG_GETARG_STORE(0);
     index = 0;
 
     if (is->len == 0)
@@ -825,7 +816,7 @@ Datum %funcprefix%_akeys(PG_FUNCTION_ARGS)
         PG_RETURN_POINTER(a);
     }
 
-    pairs = FIRST_PAIR(is, %typename%Pair);
+    pairs = FIRST_PAIR(is, StorePair);
     d     = (Datum *) palloc(sizeof(Datum) * is->len);
 
     while (index < is->len)
@@ -841,16 +832,15 @@ Datum %funcprefix%_akeys(PG_FUNCTION_ARGS)
 /*
  * return array of values
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_avals);
-Datum %funcprefix%_avals(PG_FUNCTION_ARGS)
+STORE_FUNCTION(avals)
 {
-    %typename% *    is;
-    %typename%Pair *pairs;
+    Store *    is;
+    StorePair *pairs;
     Datum *        d;
     ArrayType *    a;
     int            index;
 
-    is    = PG_GETARG_%macropostfix%(0);
+    is    = PG_GETARG_STORE(0);
     index = 0;
 
     if (is->len == 0)
@@ -859,7 +849,7 @@ Datum %funcprefix%_avals(PG_FUNCTION_ARGS)
         PG_RETURN_POINTER(a);
     }
 
-    pairs = FIRST_PAIR(is, %typename%Pair);
+    pairs = FIRST_PAIR(is, StorePair);
     d     = (Datum *) palloc(sizeof(Datum) * is->len);
 
     while (index < is->len)
@@ -875,25 +865,24 @@ Datum %funcprefix%_avals(PG_FUNCTION_ARGS)
 /*
  * return set of keys
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_skeys);
-Datum %funcprefix%_skeys(PG_FUNCTION_ARGS)
+STORE_FUNCTION(skeys)
 {
-    %typename% *      is;
+    Store *      is;
     FuncCallContext *funcctx;
-    %typename%Pair *  pairs;
+    StorePair *  pairs;
     int              i;
 
     if (SRF_IS_FIRSTCALL())
     {
-        is      = PG_GETARG_%macropostfix%(0);
+        is      = PG_GETARG_STORE(0);
         funcctx = SRF_FIRSTCALL_INIT();
         setup_firstcall(funcctx, is, NULL);
     }
 
     funcctx = SRF_PERCALL_SETUP();
-    is      = (%typename% *) funcctx->user_fctx;
+    is      = (Store *) funcctx->user_fctx;
     i       = funcctx->call_cntr;
-    pairs   = FIRST_PAIR(is, %typename%Pair);
+    pairs   = FIRST_PAIR(is, StorePair);
 
     if (i < is->len)
         SRF_RETURN_NEXT(funcctx, Int32GetDatum(pairs[i].key));
@@ -904,25 +893,24 @@ Datum %funcprefix%_skeys(PG_FUNCTION_ARGS)
 /*
  * return set of values
  */
-PG_FUNCTION_INFO_V1(%funcprefix%_svals);
-Datum %funcprefix%_svals(PG_FUNCTION_ARGS)
+STORE_FUNCTION(svals)
 {
-    %typename% *      is;
+    Store *      is;
     FuncCallContext *funcctx;
-    %typename%Pair *  pairs;
+    StorePair *  pairs;
     int              i;
 
     if (SRF_IS_FIRSTCALL())
     {
-        is      = PG_GETARG_%macropostfix%(0);
+        is      = PG_GETARG_STORE(0);
         funcctx = SRF_FIRSTCALL_INIT();
         setup_firstcall(funcctx, is, NULL);
     }
 
     funcctx = SRF_PERCALL_SETUP();
-    is      = (%typename% *) funcctx->user_fctx;
+    is      = (Store *) funcctx->user_fctx;
     i       = funcctx->call_cntr;
-    pairs   = FIRST_PAIR(is, %typename%Pair);
+    pairs   = FIRST_PAIR(is, StorePair);
 
     if (i < is->len)
         SRF_RETURN_NEXT(funcctx, Int64GetDatum(pairs[i].val));
@@ -930,28 +918,27 @@ Datum %funcprefix%_svals(PG_FUNCTION_ARGS)
     SRF_RETURN_DONE(funcctx);
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_length);
-Datum %funcprefix%_length(PG_FUNCTION_ARGS)
+STORE_FUNCTION(length)
 {
-    const %typename% *is = PG_GETARG_%macropostfix%(0);
+    const Store *is = PG_GETARG_STORE(0);
     PG_RETURN_INT32(is->len);
 }
 
 /*
  * return palloced array of alternating key values
- * returns NULL if istore is empty
+ * returns NULL if Store is empty
  */
 static inline Datum *
-%funcprefix%_key_val_datums(%typename% *is)
+store_key_val_datums(Store *is)
 {
     Datum *        d;
-    %typename%Pair *pairs;
+    StorePair *pairs;
     int            index = 0;
 
     if (is->len == 0)
         return NULL;
 
-    pairs = FIRST_PAIR(is, %typename%Pair);
+    pairs = FIRST_PAIR(is, StorePair);
     d     = (Datum *) palloc(sizeof(Datum) * is->len * 2);
 
     while (index < is->len)
@@ -963,14 +950,13 @@ static inline Datum *
     return d;
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_to_array);
-Datum %funcprefix%_to_array(PG_FUNCTION_ARGS)
+STORE_FUNCTION(to_array)
 {
-    %typename% *is;
+    Store *is;
     ArrayType *a;
     Datum *    d;
 
-    is = PG_GETARG_%macropostfix%(0);
+    is = PG_GETARG_STORE(0);
 
     if (is->len == 0)
     {
@@ -978,21 +964,20 @@ Datum %funcprefix%_to_array(PG_FUNCTION_ARGS)
         PG_RETURN_POINTER(a);
     }
 
-    d = %funcprefix%_key_val_datums(is);
+    d = store_key_val_datums(is);
     a = construct_array(d, is->len * 2, INT8OID, sizeof(int64), true, 'i');
     PG_RETURN_POINTER(a);
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_to_matrix);
-Datum %funcprefix%_to_matrix(PG_FUNCTION_ARGS)
+STORE_FUNCTION(to_matrix)
 {
-    %typename% *is;
+    Store *is;
     Datum *    d;
     ArrayType *a;
     int        out_size[2] = { 0, 2 };
     int        lb[2]       = { 1, 1 };
 
-    is = PG_GETARG_%macropostfix%(0);
+    is = PG_GETARG_STORE(0);
 
     if (is->len == 0)
     {
@@ -1001,31 +986,30 @@ Datum %funcprefix%_to_matrix(PG_FUNCTION_ARGS)
     }
 
     out_size[0] = is->len;
-    d           = %funcprefix%_key_val_datums(is);
+    d           = store_key_val_datums(is);
     a           = construct_md_array(d, NULL, 2, out_size, lb, INT8OID, sizeof(int64), true, 'i');
     PG_RETURN_POINTER(a);
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_slice);
-Datum %funcprefix%_slice(PG_FUNCTION_ARGS)
+STORE_FUNCTION(slice)
 {
-    %typename%Pair * pairs;
-    %typename% *     result;
-    %typename% *     is      = PG_GETARG_%macropostfix%(0);
-    %typename%Pairs *creator = NULL;
-    ArrayType *     a       = PG_GETARG_ARRAYTYPE_P_COPY(1);
-    int32 *         ar      = (int32 *) ARR_DATA_PTR(a);
-    int             alen    = ArrayGetNItems(ARR_NDIM(a), ARR_DIMS(a));
-    int             index1 = 0, index2 = 0;
-    bool            found = false;
+    StorePair  *pairs;
+    Store      *result;
+    Store      *is      = PG_GETARG_STORE(0);
+    StorePairs *creator = NULL;
+    ArrayType  *a       = PG_GETARG_ARRAYTYPE_P_COPY(1);
+    int32      *ar      = (int32 *) ARR_DATA_PTR(a);
+    int         alen    = ArrayGetNItems(ARR_NDIM(a), ARR_DIMS(a));
+    int         index1 = 0, index2 = 0;
+    bool        found = false;
 
     if (ARR_HASNULL(a) && array_contains_nulls(a))
         ereport(ERROR, (errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED), errmsg("array must not contain nulls")));
 
-    pairs   = FIRST_PAIR(is, %typename%Pair);
+    pairs   = FIRST_PAIR(is, StorePair);
     creator = palloc0(sizeof *creator);
 
-    %funcprefix%_pairs_init(creator, MIN(is->len, alen));
+    store_pairs_init(creator, MIN(is->len, alen));
 
     if (alen > 1)
         qsort((void *) ar, alen, sizeof(int32), is_int32_arr_comp);
@@ -1042,7 +1026,7 @@ Datum %funcprefix%_slice(PG_FUNCTION_ARGS)
         }
         else
         {
-            %funcprefix%_pairs_insert(creator, pairs[index1].key, pairs[index1].val);
+            store_pairs_insert(creator, pairs[index1].key, pairs[index1].val);
             ++index1;
             ++index2;
             found = true;
@@ -1050,19 +1034,18 @@ Datum %funcprefix%_slice(PG_FUNCTION_ARGS)
     }
     if (found)
     {
-        FINALIZE_%macropostfix%(result, creator);
+        FINALIZE_STORE(result, creator);
         PG_RETURN_POINTER(result);
     }
     else
         PG_RETURN_NULL();
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_slice_to_array);
-Datum %funcprefix%_slice_to_array(PG_FUNCTION_ARGS)
+STORE_FUNCTION(slice_to_array)
 {
-    %typename%Pair *pair;
-    %typename% *    is   = PG_GETARG_%macropostfix%(0);
-    ArrayType *    a    = PG_GETARG_ARRAYTYPE_P(1);
+    StorePair     *pair;
+    Store         *is   = PG_GETARG_STORE(0);
+    ArrayType     *a    = PG_GETARG_ARRAYTYPE_P(1);
     int32 *        ar   = (int32 *) ARR_DATA_PTR(a);
     int            alen = ArrayGetNItems(ARR_NDIM(a), ARR_DIMS(a));
     int            lbs[1];
@@ -1082,7 +1065,7 @@ Datum %funcprefix%_slice_to_array(PG_FUNCTION_ARGS)
 
     for (i = 0; i < alen; ++i)
     {
-        if ((pair = %funcprefix%_find(is, ar[i], NULL)) == NULL)
+        if ((pair = store_find(is, ar[i], NULL)) == NULL)
         {
             out_datums[i] = (Datum) 0;
             out_nulls[i]  = true;
@@ -1099,27 +1082,28 @@ Datum %funcprefix%_slice_to_array(PG_FUNCTION_ARGS)
     PG_RETURN_POINTER(aout);
 }
 
-static %typename% * %funcprefix%_clamp_pass(%typename% * is, int32 clamp_key, int delta_dir)
+static Store *
+store_clamp_pass(Store * is, int32 clamp_key, int delta_dir)
 {
-    %typename%     * result_is;
-    %typename%Pair * pairs;
-    %typename%Pairs  creator;
+    Store      *result_is;
+    StorePair  *pairs;
+    StorePairs  creator;
     int32 clamp_sum = 0;
     int   index     = 0, count = 0, delta_buflen = 0;
 
     /* short circuit out of the funciton if there is nothing to clamp */
-    if(delta_dir > 0 && FIRST_PAIR(is, %typename%Pair)->key >= clamp_key)
+    if(delta_dir > 0 && FIRST_PAIR(is, StorePair)->key >= clamp_key)
         return is;
-    if(delta_dir < 0 && LAST_PAIR(is, %typename%Pair)->key <= clamp_key) 
+    if(delta_dir < 0 && LAST_PAIR(is, StorePair)->key <= clamp_key) 
         return is;
 
-    pairs = FIRST_PAIR(is, %typename%Pair);
+    pairs = FIRST_PAIR(is, StorePair);
     index = delta_dir > 0 ? 0 : is->len - 1;
     while ( ((delta_dir > 0) && (index < is->len && pairs[index].key <= clamp_key)) ||
             ((delta_dir < 0) && (index >= 0      && pairs[index].key >= clamp_key)) )
     {
         INTPL(pairs[index].val, clamp_sum, clamp_sum);
-        delta_buflen += %funcprefix%_pair_buf_len(pairs + index);
+        delta_buflen += store_pair_buf_len(pairs + index);
         index += delta_dir, count++;
     }
 
@@ -1130,67 +1114,63 @@ static %typename% * %funcprefix%_clamp_pass(%typename% * is, int32 clamp_key, in
     if (delta_dir > 0)
         pairs = pairs + index;
 
-    creator = (%typename%Pairs) {
+    creator = (StorePairs) {
         .pairs  = pairs,
         .buflen = is->buflen - delta_buflen,
         .used   = is->len - count
     };
-    FINALIZE_ISTORE_BASE(result_is, (&creator), %typename%Pair);
+    FINALIZE_ISTORE_BASE(result_is, (&creator), StorePair);
 
     /* put the clamp_sum in the clamp-key place */
-    pairs = delta_dir > 0 ? FIRST_PAIR(result_is, %typename%Pair) : LAST_PAIR(result_is, %typename%Pair);
+    pairs = delta_dir > 0 ? FIRST_PAIR(result_is, StorePair) : LAST_PAIR(result_is, StorePair);
     pairs->key = clamp_key;
     pairs->val = clamp_sum;
-    result_is->buflen += %funcprefix%_pair_buf_len(pairs);
+    result_is->buflen += store_pair_buf_len(pairs);
 
     return result_is;
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_clamp_below);
-Datum %funcprefix%_clamp_below(PG_FUNCTION_ARGS)
+STORE_FUNCTION(clamp_below)
 {
-    PG_RETURN_POINTER(%funcprefix%_clamp_pass(PG_GETARG_%macropostfix%(0), PG_GETARG_INT32(1), 1));
+    PG_RETURN_POINTER(store_clamp_pass(PG_GETARG_STORE(0), PG_GETARG_INT32(1), 1));
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_clamp_above);
-Datum %funcprefix%_clamp_above(PG_FUNCTION_ARGS)
+STORE_FUNCTION(clamp_above)
 {
-    PG_RETURN_POINTER(%funcprefix%_clamp_pass(PG_GETARG_%macropostfix%(0), PG_GETARG_INT32(1), -1));
+    PG_RETURN_POINTER(store_clamp_pass(PG_GETARG_STORE(0), PG_GETARG_INT32(1), -1));
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_delete);
-Datum %funcprefix%_delete(PG_FUNCTION_ARGS)
+STORE_FUNCTION(delete)
 {
-    %typename%Pair *pair;
-    %typename% *    is  = PG_GETARG_%macropostfix%_COPY(0);
+    StorePair *pair;
+    Store *    is  = PG_GETARG_STORE_COPY(0);
     int32          key = PG_GETARG_INT32(1);
     int            del_off;
 
-    if ((pair = %funcprefix%_find(is, key, &del_off)))
+    if ((pair = store_find(is, key, &del_off)))
     {
         --is->len;
-        is->buflen -= %funcprefix%_pair_buf_len(pair);
+        is->buflen -= store_pair_buf_len(pair);
         if (is->len > del_off)
-            memmove(pair, pair + 1, (is->len - del_off) * sizeof(%typename%Pair));
+            memmove(pair, pair + 1, (is->len - del_off) * sizeof(StorePair));
     }
-    SET_VARSIZE(is, ISHDRSZ + (is->len * sizeof(%typename%Pair)));
+    SET_VARSIZE(is, ISHDRSZ + (is->len * sizeof(StorePair)));
     PG_RETURN_POINTER(is);
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_delete_array);
-Datum %funcprefix%_delete_array(PG_FUNCTION_ARGS)
+STORE_FUNCTION(delete_array)
 {
-    %typename%Pair *pairs;
-    %typename% *    is       = PG_GETARG_%macropostfix%_COPY(0);
-    ArrayType *    a        = PG_GETARG_ARRAYTYPE_P_COPY(1);
-    int32 *        ar       = (int32 *) ARR_DATA_PTR(a);
-    int            alen     = ArrayGetNItems(ARR_NDIM(a), ARR_DIMS(a));
-    int            is_index = 0, ar_index = 0;
+    StorePair *pairs;
+    Store     *is       = PG_GETARG_STORE_COPY(0);
+    ArrayType *a        = PG_GETARG_ARRAYTYPE_P_COPY(1);
+    int32     *ar       = (int32 *) ARR_DATA_PTR(a);
+    int        alen     = ArrayGetNItems(ARR_NDIM(a), ARR_DIMS(a));
+    int        is_index = 0, ar_index = 0;
 
     if (ARR_HASNULL(a) && array_contains_nulls(a))
         ereport(ERROR, (errcode(ERRCODE_NULL_VALUE_NOT_ALLOWED), errmsg("array must not contain nulls")));
 
-    pairs = FIRST_PAIR(is, %typename%Pair);
+    pairs = FIRST_PAIR(is, StorePair);
 
     if (alen > 1)
         qsort((void *) ar, alen, sizeof(int32), is_int32_arr_comp);
@@ -1208,29 +1188,28 @@ Datum %funcprefix%_delete_array(PG_FUNCTION_ARGS)
         else
         {
             --is->len;
-            is->buflen -= %funcprefix%_pair_buf_len(pairs + is_index);
+            is->buflen -= store_pair_buf_len(pairs + is_index);
             if (is->len > is_index)
-                memmove(pairs + is_index, pairs + is_index + 1, (is->len - is_index) * sizeof(%typename%Pair));
+                memmove(pairs + is_index, pairs + is_index + 1, (is->len - is_index) * sizeof(StorePair));
 
             ++ar_index;
         }
     }
 
-    SET_VARSIZE(is, ISHDRSZ + (is->len * sizeof(%typename%Pair)));
+    SET_VARSIZE(is, ISHDRSZ + (is->len * sizeof(StorePair)));
     PG_RETURN_POINTER(is);
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_delete_istore);
-Datum %funcprefix%_delete_istore(PG_FUNCTION_ARGS)
+STORE_FUNCTION(delete_istore)
 {
-    %typename%Pair *pairs, *delpairs;
-    %typename% *    is    = PG_GETARG_%macropostfix%_COPY(0);
-    %typename% *    isdel = PG_GETARG_%macropostfix%(1);
+    StorePair *pairs, *delpairs;
+    Store     *is    = PG_GETARG_STORE_COPY(0);
+    Store     *isdel = PG_GETARG_STORE(1);
 
     int index1 = 0, index2 = 0;
 
-    pairs    = FIRST_PAIR(is, %typename%Pair);
-    delpairs = FIRST_PAIR(isdel, %typename%Pair);
+    pairs    = FIRST_PAIR(is, StorePair);
+    delpairs = FIRST_PAIR(isdel, StorePair);
 
     while (index1 < is->len && index2 < isdel->len)
     {
@@ -1247,9 +1226,9 @@ Datum %funcprefix%_delete_istore(PG_FUNCTION_ARGS)
             if (pairs[index1].val == delpairs[index2].val)
             {
                 --is->len;
-                is->buflen -= %funcprefix%_pair_buf_len(pairs + index1);
+                is->buflen -= store_pair_buf_len(pairs + index1);
                 if (is->len > index1)
-                    memmove(pairs + index1, pairs + index1 + 1, (is->len - index1) * sizeof(%typename%Pair));
+                    memmove(pairs + index1, pairs + index1 + 1, (is->len - index1) * sizeof(StorePair));
                 ++index2;
             }
             else
@@ -1260,16 +1239,15 @@ Datum %funcprefix%_delete_istore(PG_FUNCTION_ARGS)
         }
     }
 
-    SET_VARSIZE(is, ISHDRSZ + (is->len * sizeof(%typename%Pair)));
+    SET_VARSIZE(is, ISHDRSZ + (is->len * sizeof(StorePair)));
     PG_RETURN_POINTER(is);
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_exists_any);
-Datum %funcprefix%_exists_any(PG_FUNCTION_ARGS)
+STORE_FUNCTION(exists_any)
 {
-    %typename% *is   = PG_GETARG_%macropostfix%(0);
+    Store     *is   = PG_GETARG_STORE(0);
     ArrayType *a    = PG_GETARG_ARRAYTYPE_P(1);
-    int32 *    ar   = (int32 *) ARR_DATA_PTR(a);
+    int32     *ar   = (int32 *) ARR_DATA_PTR(a);
     int        alen = ArrayGetNItems(ARR_NDIM(a), ARR_DIMS(a));
     int        i    = 0;
 
@@ -1278,19 +1256,18 @@ Datum %funcprefix%_exists_any(PG_FUNCTION_ARGS)
 
     for (i = 0; i < alen; i++)
     {
-        if (%funcprefix%_find(is, ar[i], NULL) != NULL)
+        if (store_find(is, ar[i], NULL) != NULL)
             PG_RETURN_BOOL(true);
     }
 
     PG_RETURN_BOOL(false);
 }
 
-PG_FUNCTION_INFO_V1(%funcprefix%_exists_all);
-Datum %funcprefix%_exists_all(PG_FUNCTION_ARGS)
+STORE_FUNCTION(exists_all)
 {
-    %typename% *is   = PG_GETARG_%macropostfix%(0);
+    Store     *is   = PG_GETARG_STORE(0);
     ArrayType *a    = PG_GETARG_ARRAYTYPE_P(1);
-    int32 *    ar   = (int32 *) ARR_DATA_PTR(a);
+    int32     *ar   = (int32 *) ARR_DATA_PTR(a);
     int        alen = ArrayGetNItems(ARR_NDIM(a), ARR_DIMS(a));
     int        i;
 
@@ -1299,7 +1276,7 @@ Datum %funcprefix%_exists_all(PG_FUNCTION_ARGS)
 
     for (i = 0; i < alen; i++)
     {
-        if (%funcprefix%_find(is, ar[i], NULL) == NULL)
+        if (store_find(is, ar[i], NULL) == NULL)
             PG_RETURN_BOOL(false);
     }
 

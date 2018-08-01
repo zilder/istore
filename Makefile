@@ -7,7 +7,7 @@ DATA = $(wildcard *--*.sql)
 EXTRA_CLEAN = src/istore_type.c src/bigistore_type.c sql/istore.sql sql/bigistore.sql
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 MODULE_big = istore
-OBJS = $(patsubst %.c,%.o,$(wildcard src/*.c))
+OBJS = src/istore.o src/avl.o src/depcode.o src/is_parser.o src/istore_agg.o src/istore_cast.o src/istore_io.o src/istore_key_gin.o src/pairs.o src/istore_type.o src/bigistore_type.o
 TESTS        = $(wildcard test/sql/*.sql)
 REGRESS      = $(patsubst test/sql/%.sql,%,$(TESTS))
 REGRESS_OPTS = --inputdir=test --load-language=plpgsql
@@ -17,11 +17,11 @@ include $(PGXS)
 istore--$(EXTVERSION).sql: sql/head.sql sql/bigistore.sql sql/istore.sql sql/crosstype.sql
 	cat $^ >$@
 
-src/bigistore_type.c:
-	sed -e "s/%typename%/BigIStore/g;s/%funcprefix%/bigistore/g;s/%macropostfix%/BIGISTORE/g" src/istore_type.c.template > $@
-
 src/istore_type.c:
 	sed -e "s/%typename%/IStore/g;s/%funcprefix%/istore/g;s/%macropostfix%/ISTORE/g" src/istore_type.c.template > $@
+
+src/bigistore_type.c:
+	sed -e "s/%typename%/BigIStore/g;s/%funcprefix%/bigistore/g;s/%macropostfix%/BIGISTORE/g" src/istore_type.c.template > $@
 
 sql/istore.sql:
 	sed -e "s/%type%/istore/g;s/%basetype%/integer/g" sql/istore.sql.template > $@
