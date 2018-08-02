@@ -17,11 +17,8 @@ include $(PGXS)
 istore--$(EXTVERSION).sql: sql/head.sql sql/bigistore.sql sql/istore.sql sql/crosstype.sql
 	cat $^ >$@
 
-src/istore_type.c:
-	sed -e "s/%typename%/IStore/g;s/%funcprefix%/istore/g;s/%macropostfix%/ISTORE/g" src/istore_type.c.template > $@
-
-src/bigistore_type.c:
-	sed -e "s/%typename%/BigIStore/g;s/%funcprefix%/bigistore/g;s/%macropostfix%/BIGISTORE/g" src/istore_type.c.template > $@
+src/istore_type.c src/bigistore_type.c:
+	./generate.sh
 
 sql/istore.sql:
 	sed -e "s/%type%/istore/g;s/%basetype%/integer/g" sql/istore.sql.template > $@

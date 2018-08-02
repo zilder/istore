@@ -8,76 +8,6 @@
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 
-Datum istore_out(PG_FUNCTION_ARGS);
-Datum istore_in(PG_FUNCTION_ARGS);
-Datum istore_recv(PG_FUNCTION_ARGS);
-Datum istore_send(PG_FUNCTION_ARGS);
-Datum istore_to_json(PG_FUNCTION_ARGS);
-Datum istore_array_add(PG_FUNCTION_ARGS);
-Datum istore_from_intarray(PG_FUNCTION_ARGS);
-Datum istore_multiply_integer(PG_FUNCTION_ARGS);
-Datum istore_multiply(PG_FUNCTION_ARGS);
-Datum istore_divide_integer(PG_FUNCTION_ARGS);
-Datum istore_divide_int8(PG_FUNCTION_ARGS);
-Datum istore_divide(PG_FUNCTION_ARGS);
-Datum istore_subtract_integer(PG_FUNCTION_ARGS);
-Datum istore_subtract(PG_FUNCTION_ARGS);
-Datum istore_add_integer(PG_FUNCTION_ARGS);
-Datum istore_add(PG_FUNCTION_ARGS);
-Datum istore_fetchval(PG_FUNCTION_ARGS);
-Datum istore_exist(PG_FUNCTION_ARGS);
-Datum istore_sum_up(PG_FUNCTION_ARGS);
-Datum istore_each(PG_FUNCTION_ARGS);
-Datum istore_fill_gaps(PG_FUNCTION_ARGS);
-Datum istore_accumulate(PG_FUNCTION_ARGS);
-Datum istore_seed(PG_FUNCTION_ARGS);
-Datum istore_val_larger(PG_FUNCTION_ARGS);
-Datum istore_val_smaller(PG_FUNCTION_ARGS);
-Datum istore_min_key(PG_FUNCTION_ARGS);
-Datum istore_max_key(PG_FUNCTION_ARGS);
-Datum istore_compact(PG_FUNCTION_ARGS);
-Datum istore_akeys(PG_FUNCTION_ARGS);
-Datum istore_avals(PG_FUNCTION_ARGS);
-Datum istore_skeys(PG_FUNCTION_ARGS);
-Datum istore_svals(PG_FUNCTION_ARGS);
-Datum istore_length(PG_FUNCTION_ARGS);
-Datum istore_sum_transfn(PG_FUNCTION_ARGS);
-Datum istore_sum_finalfn(PG_FUNCTION_ARGS);
-
-Datum bigistore_out(PG_FUNCTION_ARGS);
-Datum bigistore_in(PG_FUNCTION_ARGS);
-Datum bigistore_recv(PG_FUNCTION_ARGS);
-Datum bigistore_send(PG_FUNCTION_ARGS);
-Datum bigistore_to_json(PG_FUNCTION_ARGS);
-Datum bigistore_array_add(PG_FUNCTION_ARGS);
-Datum bigistore_from_intarray(PG_FUNCTION_ARGS);
-Datum bigistore_multiply_integer(PG_FUNCTION_ARGS);
-Datum bigistore_multiply(PG_FUNCTION_ARGS);
-Datum bigistore_divide_integer(PG_FUNCTION_ARGS);
-Datum bigistore_divide_int8(PG_FUNCTION_ARGS);
-Datum bigistore_divide(PG_FUNCTION_ARGS);
-Datum bigistore_subtract_integer(PG_FUNCTION_ARGS);
-Datum bigistore_subtract(PG_FUNCTION_ARGS);
-Datum bigistore_add_integer(PG_FUNCTION_ARGS);
-Datum bigistore_add(PG_FUNCTION_ARGS);
-Datum bigistore_fetchval(PG_FUNCTION_ARGS);
-Datum bigistore_exist(PG_FUNCTION_ARGS);
-Datum bigistore_sum_up(PG_FUNCTION_ARGS);
-Datum bigistore_each(PG_FUNCTION_ARGS);
-Datum bigistore_fill_gaps(PG_FUNCTION_ARGS);
-Datum bigistore_accumulate(PG_FUNCTION_ARGS);
-Datum bigistore_seed(PG_FUNCTION_ARGS);
-Datum bigistore_val_larger(PG_FUNCTION_ARGS);
-Datum bigistore_val_smaller(PG_FUNCTION_ARGS);
-Datum bigistore_min_key(PG_FUNCTION_ARGS);
-Datum bigistore_max_key(PG_FUNCTION_ARGS);
-Datum bigistore_compact(PG_FUNCTION_ARGS);
-Datum bigistore_akeys(PG_FUNCTION_ARGS);
-Datum bigistore_avals(PG_FUNCTION_ARGS);
-Datum bigistore_skeys(PG_FUNCTION_ARGS);
-Datum bigistore_svals(PG_FUNCTION_ARGS);
-Datum bigistore_length(PG_FUNCTION_ARGS);
-Datum bigistore_sum_transfn(PG_FUNCTION_ARGS);
 
 /*
  * a single key/value pair
@@ -152,6 +82,7 @@ void           bigistore_tree_to_pairs(AvlNode *p, BigIStorePairs *pairs);
 BigIStorePair *bigistore_find(BigIStore *is, int32 key, int *off_out);
 
 int is_int32_arr_comp(const void *a, const void *b);
+int is_int64_arr_comp(const void *a, const void *b);
 
 #define BUFLEN_OFFSET 8
 #define MAX(_a, _b) ((_a > _b) ? _a : _b)
