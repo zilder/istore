@@ -48,6 +48,8 @@ generate() {
         #define minus_func int${valbytes}mi\n
         #define div_func int${valbytes}div\n
         #define mul_func int${valbytes}mul\n
+        #define keydigits digits${keybits}\n
+        #define valdigits digits${valbits}\n
     "
 
     defines=`echo $defines | tr '\n' "\\n"`
