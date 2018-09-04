@@ -2,6 +2,7 @@
 #define ISTORE_PARSER_H
 
 #include "postgres.h"
+#include "fmgr.h"
 #include "avl.h"
 
 typedef struct ISParser {
@@ -11,7 +12,7 @@ typedef struct ISParser {
     AvlNode *tree;
 } ISParser;
 
-AvlNode* is_parse(ISParser *parser);
+AvlNode* is_parse(ISParser *parser, PGFunction func);
 
 #define EMPTY_ISTORE(_istore)          \
     do {                               \

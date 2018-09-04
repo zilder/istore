@@ -35,11 +35,44 @@
     if (*_ptr == '"')      \
             _ptr++;
 
+static char *
+read_key(char *str, PGFunction input_func, int32 *key)
+{
+    char   *c = str;
+    char    prev = '\0';
+
+    while(*c != '\0')
+    {
+        // At this point do it stupid way: just look for quote or
+        // eqaulity sign (which is the start of =>) and consider
+        // it as the end of lexeme.
+        if (*c == '"' || *c == '=')
+        {
+            prev = *c;
+            // Put terminator here so that input function could
+            // determine the end of lexeme. We'll restore the
+            // original character later.
+            *c = '\0';
+            break;
+        }
+        c++;
+    }
+
+    *key = DatumGetInt32(
+            DirectFunctionCall1(input_func, CStringGetDatum(str)));
+
+    // Restore the original charachter
+    if (*c != prev)
+        *c = prev;
+
+    return c;
+}
+
 /*
  * parse cstring into an AVL tree
  */
 AvlNode*
-is_parse(ISParser *parser)
+is_parse(ISParser *parser, PGFunction key_input_func)
 {
     int32    key;
     int64    val;
@@ -54,7 +87,8 @@ is_parse(ISParser *parser)
         {
             SKIP_SPACES(parser->ptr);
             SKIP_ESCAPED(parser->ptr);
-            GET_NUM(parser, key);
+            //GET_NUM(parser, key);
+            parser->ptr = read_key(parser->ptr, key_input_func, &key);
             parser->state = WEQ;
             SKIP_ESCAPED(parser->ptr);
         }

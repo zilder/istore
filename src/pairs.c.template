@@ -1,0 +1,110 @@
+#include "avl.h"
+#include "istore.h"
+
+static inline int digits32(int32 num);
+static inline int digits64(int64 num);
+
+int
+istore_pair_buf_len(IStorePair *pair)
+{
+    return (digits32(pair->key) + digits32(pair->val) + BUFLEN_OFFSET);
+}
+
+int
+bigistore_pair_buf_len(BigIStorePair *pair)
+{
+    return (digits32(pair->key) + digits64(pair->val) + BUFLEN_OFFSET);
+}
+
+/*
+ * copy *src_pairs to the IStorePair of *istore and add buflen to *istore
+ */
+void
+istore_copy_and_add_buflen(IStore *istore, BigIStorePair *src_pairs)
+{
+    IStorePair *dest_pairs = FIRST_PAIR(istore, IStorePair);
+
+    for (int i = 0; i < istore->len; ++i)
+    {
+        dest_pairs[i].key = src_pairs[i].key;
+        dest_pairs[i].val = src_pairs[i].val;
+        istore->buflen += digits32(dest_pairs[i].key) + digits32(dest_pairs[i].val) + BUFLEN_OFFSET;
+    }
+
+    if (istore->buflen < 0)
+        elog(ERROR, "istore buffer overflow");
+}
+
+/*
+ * add buflen to bigistore
+ */
+void
+bigistore_add_buflen(BigIStore *istore)
+{
+    BigIStorePair *pairs;
+
+    pairs = FIRST_PAIR(istore, BigIStorePair);
+
+    for (int i = 0; i < istore->len; i++)
+        istore->buflen += digits32(pairs[i].key) + digits64(pairs[i].val) + BUFLEN_OFFSET;
+
+    if (istore->buflen < 0)
+        elog(ERROR, "istore buffer overflow");
+}
+
+{%
+/*
+ * adds a key/ value pair for each subnode to IStorePairs
+ * due to the nature of the AVL tree the pairs will be ordered by key
+ */
+void
+${store_type}_tree_to_pairs(AvlNode *p, ${store_pairs_type} *pairs)
+{
+    if (p == NULL)
+        return;
+    ${store_type}_tree_to_pairs(p->left, pairs);
+    ${store_type}_pairs_insert(pairs, p->key, p->value);
+    ${store_type}_tree_to_pairs(p->right, pairs);
+}
+
+/*
+ * initialize IStorePairs
+ */
+void
+${store_type}_pairs_init(${store_pairs_type} *pairs, size_t initial_size)
+{
+    pairs->pairs  = palloc0(initial_size * sizeof(${store_pair_type}));
+    pairs->used   = 0;
+    pairs->size   = initial_size;
+    pairs->buflen = 0;
+}
+
+/*
+ * insert key value to IStorePairs
+ */
+void
+${store_type}_pairs_insert(${store_pairs_type} *pairs, ${keytype} key, ${valtype} val)
+{
+    if (pairs->size == pairs->used)
+    {
+        if (pairs->used == PAIRS_MAX(${store_pair_type}))
+            elog(ERROR, "${store_type} can't have more than %lu keys", PAIRS_MAX(${store_pair_type}));
+
+        pairs->size *= 2;
+        // overflow check pairs->size should have been grown but not exceed PAIRS_MAX(${store_pair_type})
+        if (pairs->size < pairs->used || pairs->size > PAIRS_MAX(${store_pair_type}))
+            pairs->size = PAIRS_MAX(${store_pair_type});
+
+        pairs->pairs = repalloc(pairs->pairs, pairs->size * sizeof(${store_pair_type}));
+    }
+
+    pairs->pairs[pairs->used].key = key;
+    pairs->pairs[pairs->used].val = val;
+    //pairs->buflen += digits32(key) + digits32(val) + BUFLEN_OFFSET;
+
+    if (pairs->buflen < 0)
+        elog(ERROR, "${store_type} buffer overflow");
+    pairs->used++;
+}
+
+%}

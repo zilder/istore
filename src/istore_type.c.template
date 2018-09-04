@@ -1,8 +1,10 @@
 #include "istore.h"
+#include "is_parser.h"
 
 #include "access/htup_details.h"
 #include "catalog/pg_type.h"
 #include "funcapi.h"
+#include "libpq/pqformat.h"
 #include "utils/array.h"
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
@@ -11,6 +13,96 @@ ${defines}
 
 static inline Datum *store_key_val_datums(Store *is);
 
+STORE_FUNCTION(out)
+{
+    Store        *in;
+    int           i;
+    StorePair    *pairs;
+    StringInfoData s;
+
+    in = PG_GETARG_STORE(0);
+
+    if (in->len == 0)
+        PG_RETURN_CSTRING(palloc0(1));
+
+    pairs = FIRST_PAIR(in, StorePair);
+    initStringInfo(&s);
+
+    for (i = 0; i<in->len; ++i)
+    {
+        char *keystr = (char *) DirectFunctionCall1(key_output_func, KeyGetDatum(pairs[i].key)); 
+        char *valstr = (char *) DirectFunctionCall1(val_output_func, ValueGetDatum(pairs[i].val)); 
+
+        if (i > 0)
+            appendStringInfo(&s, ", \"%s\"=>\"%s\"", keystr, valstr);
+        else
+            appendStringInfo(&s, "\"%s\"=>\"%s\"", keystr, valstr);
+    }
+    PG_RETURN_CSTRING(s.data);
+}
+
+STORE_FUNCTION(in)
+{
+    ISParser     parser;
+    Store       *out;
+    StorePairs  *pairs;
+    AvlNode     *tree;
+    int          n;
+
+    parser.begin = PG_GETARG_CSTRING(0);
+
+    if (parser.begin[0] == '\0')
+    {
+        EMPTY_ISTORE(out);
+        PG_RETURN_POINTER(out);
+    }
+
+    tree = is_parse(&parser, key_input_func);
+
+    pairs = palloc0(sizeof(StorePairs));
+    n = is_tree_length(tree);
+    store_pairs_init(pairs, n);
+    store_tree_to_pairs(tree, pairs);
+    istore_make_empty(tree);
+    FINALIZE_STORE(out, pairs);
+    PG_RETURN_POINTER(out);
+}
+
+STORE_FUNCTION(recv)
+{
+    IStore *result;
+    StringInfo buf = (StringInfo) PG_GETARG_POINTER(0);
+    int i = 0;
+    IStorePairs *creator = palloc0(sizeof *creator);
+    int32 len = pq_getmsgint(buf, 4);
+    istore_pairs_init(creator, len);
+    for (; i < len; ++i)
+    {
+        Key key = BUF_READ_KEY(buf);
+        StoreValue val = BUF_READ_VALUE(buf);
+        istore_pairs_insert(creator, key, val);
+    }
+    FINALIZE_ISTORE(result, creator);
+    PG_RETURN_POINTER(result);
+}
+
+STORE_FUNCTION(send)
+{
+    IStore *in = PG_GETARG_ISTORE(0);
+    IStorePair *pairs= FIRST_PAIR(in, IStorePair);
+    int i = 0;
+    StringInfoData buf;
+    pq_begintypsend(&buf);
+    pq_sendint(&buf, in->len, 4);
+    for (; i < in->len; ++i)
+    {
+        Key key = pairs[i].key;
+        StoreValue val = pairs[i].val;
+        BUF_STORE_KEY(&buf, key);
+        BUF_STORE_VALUE(&buf, val);
+    }
+    PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
+}
 /*
  * combine two Stores by applying PGFunction mergefunc on values where key match
  * if PGFunction miss1func is not NULL values for keys which doesn't exists on
@@ -1093,7 +1185,7 @@ store_clamp_pass(Store * is, Key clamp_key, int delta_dir)
             ((delta_dir < 0) && (index >= 0      && pairs[index].key >= clamp_key)) )
     {
         INTPL(pairs[index].val, clamp_sum, clamp_sum);
-        delta_buflen += store_pair_buf_len(pairs + index);
+        //delta_buflen += store_pair_buf_len(pairs + index);
         index += delta_dir, count++;
     }
 
@@ -1115,7 +1207,7 @@ store_clamp_pass(Store * is, Key clamp_key, int delta_dir)
     pairs = delta_dir > 0 ? FIRST_PAIR(result_is, StorePair) : LAST_PAIR(result_is, StorePair);
     pairs->key = clamp_key;
     pairs->val = clamp_sum;
-    result_is->buflen += store_pair_buf_len(pairs);
+    //result_is->buflen += store_pair_buf_len(pairs);
 
     return result_is;
 }
@@ -1140,7 +1232,7 @@ STORE_FUNCTION(delete)
     if ((pair = store_find(is, key, &del_off)))
     {
         --is->len;
-        is->buflen -= store_pair_buf_len(pair);
+        //is->buflen -= store_pair_buf_len(pair);
         if (is->len > del_off)
             memmove(pair, pair + 1, (is->len - del_off) * sizeof(StorePair));
     }
@@ -1178,7 +1270,7 @@ STORE_FUNCTION(delete_array)
         else
         {
             --is->len;
-            is->buflen -= store_pair_buf_len(pairs + is_index);
+            //is->buflen -= store_pair_buf_len(pairs + is_index);
             if (is->len > is_index)
                 memmove(pairs + is_index, pairs + is_index + 1, (is->len - is_index) * sizeof(StorePair));
 
@@ -1216,7 +1308,7 @@ STORE_FUNCTION(delete_istore)
             if (pairs[index1].val == delpairs[index2].val)
             {
                 --is->len;
-                is->buflen -= store_pair_buf_len(pairs + index1);
+                //is->buflen -= store_pair_buf_len(pairs + index1);
                 if (is->len > index1)
                     memmove(pairs + index1, pairs + index1 + 1, (is->len - index1) * sizeof(StorePair));
                 ++index2;
@@ -1494,11 +1586,11 @@ STORE_FUNCTION(agg_finalfn_pairs)
         istore_pairs[i].key = state->pairs[i].key;
         istore_pairs[i].val = state->pairs[i].val;
         /* TODO: estimate buflen for custom type key */
-        istore->buflen += keydigits(istore_pairs[i].key) + valdigits(istore_pairs[i].val) + BUFLEN_OFFSET;
+        //istore->buflen += keydigits(istore_pairs[i].key) + valdigits(istore_pairs[i].val) + BUFLEN_OFFSET;
     }
 
-    if (istore->buflen < 0)
-        elog(ERROR, "istore buffer overflow");
+    //if (istore->buflen < 0)
+    //    elog(ERROR, "istore buffer overflow");
 
     SET_VARSIZE(istore, ISHDRSZ + state->used * sizeof(StorePair));
 

@@ -100,7 +100,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:56;
 CREATE EXTENSION istore;
 SELECT '2=>4, 54foo=>5, 5=>17'::bigistore;
-ERROR:  invalid input syntax for istore: "2=>4, 54foo=>5, 5=>17"
+ERROR:  invalid input syntax for integer: "54foo"
 LINE 1: SELECT '2=>4, 54foo=>5, 5=>17'::bigistore;
                ^
 DETAIL:  unexpected sign f, in istore key
@@ -110,7 +110,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:60;
 CREATE EXTENSION istore;
 SELECT '2=>4, foo=>5, 5=>17'::bigistore;
-ERROR:  invalid input syntax for istore: "2=>4, foo=>5, 5=>17"
+ERROR:  invalid input syntax for integer: "foo"
 LINE 1: SELECT '2=>4, foo=>5, 5=>17'::bigistore;
                ^
 DETAIL:  unexpected sign f, in istore key
@@ -120,7 +120,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:64;
 CREATE EXTENSION istore;
 SELECT '2=>4, 4000000000=>5, 5=>17'::bigistore;
-ERROR:  istore "2=>4, 4000000000=>5, 5=>17" is out of range
+ERROR:  value "4000000000" is out of range for type integer
 LINE 1: SELECT '2=>4, 4000000000=>5, 5=>17'::bigistore;
                ^
 ROLLBACK;
@@ -245,7 +245,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:56;
 CREATE EXTENSION istore;
 SELECT '2=>4, 54foo=>5, 5=>17'::istore;
-ERROR:  invalid input syntax for istore: "2=>4, 54foo=>5, 5=>17"
+ERROR:  invalid input syntax for integer: "54foo"
 LINE 1: SELECT '2=>4, 54foo=>5, 5=>17'::istore;
                ^
 DETAIL:  unexpected sign f, in istore key
@@ -255,7 +255,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:60;
 CREATE EXTENSION istore;
 SELECT '2=>4, foo=>5, 5=>17'::istore;
-ERROR:  invalid input syntax for istore: "2=>4, foo=>5, 5=>17"
+ERROR:  invalid input syntax for integer: "foo"
 LINE 1: SELECT '2=>4, foo=>5, 5=>17'::istore;
                ^
 DETAIL:  unexpected sign f, in istore key
@@ -265,7 +265,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:64;
 CREATE EXTENSION istore;
 SELECT '2=>4, 4000000000=>5, 5=>17'::istore;
-ERROR:  istore "2=>4, 4000000000=>5, 5=>17" is out of range
+ERROR:  value "4000000000" is out of range for type integer
 LINE 1: SELECT '2=>4, 4000000000=>5, 5=>17'::istore;
                ^
 ROLLBACK;
@@ -274,7 +274,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:68;
 CREATE EXTENSION istore;
 SELECT '2=>4, -4000000000=>5, 5=>17'::istore;
-ERROR:  istore "2=>4, -4000000000=>5, 5=>17" is out of range
+ERROR:  value "-4000000000" is out of range for type integer
 LINE 1: SELECT '2=>4, -4000000000=>5, 5=>17'::istore;
                ^
 ROLLBACK;

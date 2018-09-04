@@ -5,50 +5,39 @@
 #include "istore.h"
 #include "is_parser.h"
 #include "libpq/pqformat.h"
+#include "fmgr.h"
 #include "utils/builtins.h"
 
+
+#if 0
 PG_FUNCTION_INFO_V1(istore_out);
 Datum
 istore_out(PG_FUNCTION_ARGS)
 {
     IStore       *in;
     int           i;
-    char         *out,
-                 *walk;
     IStorePair   *pairs;
+    StringInfoData s;
 
     in = PG_GETARG_ISTORE(0);
 
     if (in->len == 0)
-    {
-        out = palloc0(1);
-        PG_RETURN_CSTRING(out);
-    }
-    out = palloc0(in->buflen + 1);
+        PG_RETURN_CSTRING(palloc0(1));
+
     pairs = FIRST_PAIR(in, IStorePair);
-    walk = out;
+    initStringInfo(&s);
 
     for (i = 0; i<in->len; ++i)
     {
-        *walk++ = '"';
-        pg_ltoa(pairs[i].key, walk);
-        while (*++walk != '\0') ;
+        char *keystr = (char *) DirectFunctionCall1(int4out, Int32GetDatum(pairs[i].key)); 
+        char *valstr = (char *) DirectFunctionCall1(int4out, Int32GetDatum(pairs[i].val)); 
 
-        *walk++ = '"';
-        *walk++ = '=';
-        *walk++ = '>';
-        *walk++ = '"';
-        pg_ltoa(pairs[i].val, walk);
-        while (*++walk != '\0') ;
-        *walk++ = '"';
-        *walk++ = ',';
-        *walk++ = ' ';
-
+        if (i > 0)
+            appendStringInfo(&s, ", \"%s\"=>\"%s\"", keystr, valstr);
+        else
+            appendStringInfo(&s, "\"%s\"=>\"%s\"", keystr, valstr);
     }
-    // replace trailing ", " with terminating null
-    --walk;
-    *--walk = '\0';
-    PG_RETURN_CSTRING(out);
+    PG_RETURN_CSTRING(s.data);
 }
 
 PG_FUNCTION_INFO_V1(istore_in);
@@ -69,7 +58,7 @@ istore_in(PG_FUNCTION_ARGS)
         PG_RETURN_POINTER(out);
     }
 
-    tree = is_parse(&parser);
+    tree = is_parse(&parser, int4in);
 
     pairs = palloc0(sizeof(IStorePairs));
     n = is_tree_length(tree);
@@ -119,6 +108,7 @@ istore_send(PG_FUNCTION_ARGS)
     }
     PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
 }
+#endif
 
 /*
  * json representation of an istore
@@ -156,6 +146,7 @@ istore_to_json(PG_FUNCTION_ARGS)
     PG_RETURN_TEXT_P(cstring_to_text(dst.data));
 }
 
+#if 0
 PG_FUNCTION_INFO_V1(bigistore_out);
 Datum
 bigistore_out(PG_FUNCTION_ARGS)
@@ -220,7 +211,7 @@ bigistore_in(PG_FUNCTION_ARGS)
         PG_RETURN_POINTER(out);
     }
 
-    tree = is_parse(&parser);
+    tree = is_parse(&parser, int4in);
 
     pairs = palloc0(sizeof(BigIStorePairs));
     n = is_tree_length(tree);
@@ -270,6 +261,7 @@ bigistore_send(PG_FUNCTION_ARGS)
     }
     PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
 }
+#endif
 
 /*
  * json representation of a bigistore
@@ -307,3 +299,44 @@ bigistore_to_json(PG_FUNCTION_ARGS)
     PG_RETURN_TEXT_P(cstring_to_text(dst.data));
 }
 
+#if 0
+PG_FUNCTION_INFO_V1(dateistore_recv);
+Datum
+dateistore_recv(PG_FUNCTION_ARGS)
+{
+    DateIStore *result;
+    StringInfo buf = (StringInfo) PG_GETARG_POINTER(0);
+    int i = 0;
+    DateIStorePairs *creator = palloc0(sizeof *creator);
+    int32 len = pq_getmsgint(buf, 4);
+    dateistore_pairs_init(creator, len);
+    for (; i < len; ++i)
+    {
+        int32  key  = pq_getmsgint(buf, 4);
+        int64  val  = pq_getmsgint64(buf);
+        dateistore_pairs_insert(creator, key, val);
+    }
+    FINALIZE_DATEISTORE(result, creator);
+    PG_RETURN_POINTER(result);
+}
+
+PG_FUNCTION_INFO_V1(dateistore_send);
+Datum
+dateistore_send(PG_FUNCTION_ARGS)
+{
+    DateIStore *in = PG_GETARG_DATEISTORE(0);
+    DateIStorePair *pairs= FIRST_PAIR(in, DateIStorePair);
+    int i = 0;
+    StringInfoData buf;
+    pq_begintypsend(&buf);
+    pq_sendint(&buf, in->len, 4);
+    for (; i < in->len; ++i)
+    {
+        int32 key = pairs[i].key;
+        int64 val = pairs[i].val;
+        pq_sendint(&buf, key, 4);
+        pq_sendint64(&buf, val);
+    }
+    PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
+}
+#endif
