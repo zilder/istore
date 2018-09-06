@@ -110,6 +110,7 @@ istore_send(PG_FUNCTION_ARGS)
 }
 #endif
 
+#if 0
 /*
  * json representation of an istore
  */
@@ -145,6 +146,7 @@ istore_to_json(PG_FUNCTION_ARGS)
 
     PG_RETURN_TEXT_P(cstring_to_text(dst.data));
 }
+#endif
 
 #if 0
 PG_FUNCTION_INFO_V1(bigistore_out);
@@ -263,6 +265,7 @@ bigistore_send(PG_FUNCTION_ARGS)
 }
 #endif
 
+#if 0
 /*
  * json representation of a bigistore
  */
@@ -298,6 +301,7 @@ bigistore_to_json(PG_FUNCTION_ARGS)
     appendStringInfoChar(&dst, '}');
     PG_RETURN_TEXT_P(cstring_to_text(dst.data));
 }
+#endif
 
 #if 0
 PG_FUNCTION_INFO_V1(dateistore_recv);

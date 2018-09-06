@@ -9,10 +9,14 @@ typedef struct ISParser {
     char    *begin;
     char    *ptr;
     int      state;
+    PGFunction keyin;  /* key input func */
+    PGFunction valin;  /* value input func */
+    int      keysize;
+    int      valsize;
     AvlNode *tree;
 } ISParser;
 
-AvlNode* is_parse(ISParser *parser, PGFunction func);
+AvlNode* is_parse(ISParser *parser);
 
 #define EMPTY_ISTORE(_istore)          \
     do {                               \

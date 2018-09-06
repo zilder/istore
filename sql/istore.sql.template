@@ -171,12 +171,10 @@ CREATE FUNCTION istore_length(%type%)
     AS 'istore', '%type%_length'
     LANGUAGE C IMMUTABLE STRICT;
 
-/*
 CREATE FUNCTION istore_to_json(%type%)
 RETURNS json
 AS 'istore', '%type%_to_json'
 LANGUAGE C IMMUTABLE STRICT;
-*/
 
 /* TODO: what it should look like for non-integer keys? */
 CREATE FUNCTION istore_to_array(%type%)

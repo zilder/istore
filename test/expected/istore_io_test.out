@@ -62,27 +62,25 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:38;
 CREATE EXTENSION istore;
 SELECT '2=>4, 1=>foo, 5=>17'::bigistore;
-ERROR:  invalid input syntax for istore: "2=>4, 1=>foo, 5=>17"
+ERROR:  invalid input syntax for integer: "foo"
 LINE 1: SELECT '2=>4, 1=>foo, 5=>17'::bigistore;
                ^
-DETAIL:  unexpected sign f, in istore value
 ROLLBACK;
 BEGIN;
 -- bigistore istore_io invalid input should report invalid value input;
 -- ./spec/istore/istore_io_spec.rb:42;
 CREATE EXTENSION istore;
 SELECT '2=>4, 1=>5foo, 5=>17'::bigistore;
-ERROR:  invalid input syntax for istore: "2=>4, 1=>5foo, 5=>17"
+ERROR:  invalid input syntax for integer: "5foo"
 LINE 1: SELECT '2=>4, 1=>5foo, 5=>17'::bigistore;
                ^
-DETAIL:  unexpected sign f, in istore value
 ROLLBACK;
 BEGIN;
 -- bigistore istore_io invalid input should report to big value input;
 -- ./spec/istore/istore_io_spec.rb:46;
 CREATE EXTENSION istore;
 SELECT '2=>4, 1=>18446744073709551612, 5=>17'::bigistore;
-ERROR:  istore "2=>4, 1=>18446744073709551612, 5=>17" is out of range
+ERROR:  value "18446744073709551612" is out of range for type bigint
 LINE 1: SELECT '2=>4, 1=>18446744073709551612, 5=>17'::bigistore;
                ^
 ROLLBACK;
@@ -91,7 +89,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:51;
 CREATE EXTENSION istore;
 SELECT '2=>4, 1=>-18446744073709551614, 5=>17'::bigistore;
-ERROR:  istore "2=>4, 1=>-18446744073709551614, 5=>17" is out of range
+ERROR:  value "-18446744073709551614" is out of range for type bigint
 LINE 1: SELECT '2=>4, 1=>-18446744073709551614, 5=>17'::bigistore;
                ^
 ROLLBACK;
@@ -103,7 +101,6 @@ SELECT '2=>4, 54foo=>5, 5=>17'::bigistore;
 ERROR:  invalid input syntax for integer: "54foo"
 LINE 1: SELECT '2=>4, 54foo=>5, 5=>17'::bigistore;
                ^
-DETAIL:  unexpected sign f, in istore key
 ROLLBACK;
 BEGIN;
 -- bigistore istore_io invalid input should report invalid key input;
@@ -113,7 +110,6 @@ SELECT '2=>4, foo=>5, 5=>17'::bigistore;
 ERROR:  invalid input syntax for integer: "foo"
 LINE 1: SELECT '2=>4, foo=>5, 5=>17'::bigistore;
                ^
-DETAIL:  unexpected sign f, in istore key
 ROLLBACK;
 BEGIN;
 -- bigistore istore_io invalid input should report to big key input;
@@ -129,7 +125,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:68;
 CREATE EXTENSION istore;
 SELECT '2=>4, -4000000000=>5, 5=>17'::bigistore;
-ERROR:  istore "2=>4, -4000000000=>5, 5=>17" is out of range
+ERROR:  value "-4000000000" is out of range for type integer
 LINE 1: SELECT '2=>4, -4000000000=>5, 5=>17'::bigistore;
                ^
 ROLLBACK;
@@ -207,27 +203,25 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:38;
 CREATE EXTENSION istore;
 SELECT '2=>4, 1=>foo, 5=>17'::istore;
-ERROR:  invalid input syntax for istore: "2=>4, 1=>foo, 5=>17"
+ERROR:  invalid input syntax for integer: "foo"
 LINE 1: SELECT '2=>4, 1=>foo, 5=>17'::istore;
                ^
-DETAIL:  unexpected sign f, in istore value
 ROLLBACK;
 BEGIN;
 -- istore istore_io invalid input should report invalid value input;
 -- ./spec/istore/istore_io_spec.rb:42;
 CREATE EXTENSION istore;
 SELECT '2=>4, 1=>5foo, 5=>17'::istore;
-ERROR:  invalid input syntax for istore: "2=>4, 1=>5foo, 5=>17"
+ERROR:  invalid input syntax for integer: "5foo"
 LINE 1: SELECT '2=>4, 1=>5foo, 5=>17'::istore;
                ^
-DETAIL:  unexpected sign f, in istore value
 ROLLBACK;
 BEGIN;
 -- istore istore_io invalid input should report to big value input;
 -- ./spec/istore/istore_io_spec.rb:46;
 CREATE EXTENSION istore;
 SELECT '2=>4, 1=>4294967294, 5=>17'::istore;
-ERROR:  integer out of range
+ERROR:  value "4294967294" is out of range for type integer
 LINE 1: SELECT '2=>4, 1=>4294967294, 5=>17'::istore;
                ^
 ROLLBACK;
@@ -236,7 +230,7 @@ BEGIN;
 -- ./spec/istore/istore_io_spec.rb:51;
 CREATE EXTENSION istore;
 SELECT '2=>4, 1=>-4294967294, 5=>17'::istore;
-ERROR:  integer out of range
+ERROR:  value "-4294967294" is out of range for type integer
 LINE 1: SELECT '2=>4, 1=>-4294967294, 5=>17'::istore;
                ^
 ROLLBACK;
@@ -248,7 +242,6 @@ SELECT '2=>4, 54foo=>5, 5=>17'::istore;
 ERROR:  invalid input syntax for integer: "54foo"
 LINE 1: SELECT '2=>4, 54foo=>5, 5=>17'::istore;
                ^
-DETAIL:  unexpected sign f, in istore key
 ROLLBACK;
 BEGIN;
 -- istore istore_io invalid input should report invalid key input;
@@ -258,7 +251,6 @@ SELECT '2=>4, foo=>5, 5=>17'::istore;
 ERROR:  invalid input syntax for integer: "foo"
 LINE 1: SELECT '2=>4, foo=>5, 5=>17'::istore;
                ^
-DETAIL:  unexpected sign f, in istore key
 ROLLBACK;
 BEGIN;
 -- istore istore_io invalid input should report to big key input;

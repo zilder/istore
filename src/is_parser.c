@@ -36,17 +36,17 @@
             _ptr++;
 
 static char *
-read_key(char *str, PGFunction input_func, int32 *key)
+read_value(char *str, PGFunction input_func, int size, int64 *value)
 {
     char   *c = str;
     char    prev = '\0';
 
     while(*c != '\0')
     {
-        // At this point do it stupid way: just look for quote or
-        // eqaulity sign (which is the start of =>) and consider
-        // it as the end of lexeme.
-        if (*c == '"' || *c == '=')
+        // At this point do it stupid way: just look for quote,
+        // eqaulity sign (which is the start of =>) or comma and
+        // consider it as the end of lexeme.
+        if (*c == '"' || *c == '=' || *c == ',')
         {
             prev = *c;
             // Put terminator here so that input function could
@@ -58,8 +58,23 @@ read_key(char *str, PGFunction input_func, int32 *key)
         c++;
     }
 
-    *key = DatumGetInt32(
+    *value = DatumGetInt64(
             DirectFunctionCall1(input_func, CStringGetDatum(str)));
+
+    /*
+     * Convert key value to a 8 byte value. This step is important for
+     * the cases when we have 4 byte input key type (like in IStore) with
+     * negative value. Without this fix, for example, the value -1 will
+     * turn to 4294967295 for the key of size 4.
+     */
+    switch (size)
+    {
+        case 2: *value = (int16) *value; break;
+        case 4: *value = (int32) *value; break;
+        case 8: break; /* do nothing */
+        default:
+            elog(ERROR, "Value size %d is not supported", size);
+    }
 
     // Restore the original charachter
     if (*c != prev)
@@ -72,9 +87,9 @@ read_key(char *str, PGFunction input_func, int32 *key)
  * parse cstring into an AVL tree
  */
 AvlNode*
-is_parse(ISParser *parser, PGFunction key_input_func)
+is_parse(ISParser *parser)
 {
-    int32    key;
+    int64    key;
     int64    val;
 
     parser->state = WKEY;
@@ -87,8 +102,7 @@ is_parse(ISParser *parser, PGFunction key_input_func)
         {
             SKIP_SPACES(parser->ptr);
             SKIP_ESCAPED(parser->ptr);
-            //GET_NUM(parser, key);
-            parser->ptr = read_key(parser->ptr, key_input_func, &key);
+            parser->ptr = read_value(parser->ptr, parser->keyin, parser->keysize, &key);
             parser->state = WEQ;
             SKIP_ESCAPED(parser->ptr);
         }
@@ -127,7 +141,8 @@ is_parse(ISParser *parser, PGFunction key_input_func)
         {
             SKIP_SPACES(parser->ptr);
             SKIP_ESCAPED(parser->ptr);
-            GET_NUM(parser, val);
+            //GET_NUM(parser, val);
+            parser->ptr = read_value(parser->ptr, parser->valin, parser->valsize, &val);
             SKIP_ESCAPED(parser->ptr);
             parser->state = WDEL;
             parser->tree = is_tree_insert(parser->tree, key, val);

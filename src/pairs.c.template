@@ -58,20 +58,20 @@ bigistore_add_buflen(BigIStore *istore)
  * due to the nature of the AVL tree the pairs will be ordered by key
  */
 void
-${store_type}_tree_to_pairs(AvlNode *p, ${store_pairs_type} *pairs)
+${store_type_lower}_tree_to_pairs(AvlNode *p, ${store_pairs_type} *pairs)
 {
     if (p == NULL)
         return;
-    ${store_type}_tree_to_pairs(p->left, pairs);
-    ${store_type}_pairs_insert(pairs, p->key, p->value);
-    ${store_type}_tree_to_pairs(p->right, pairs);
+    ${store_type_lower}_tree_to_pairs(p->left, pairs);
+    ${store_type_lower}_pairs_insert(pairs, p->key, p->value);
+    ${store_type_lower}_tree_to_pairs(p->right, pairs);
 }
 
 /*
  * initialize IStorePairs
  */
 void
-${store_type}_pairs_init(${store_pairs_type} *pairs, size_t initial_size)
+${store_type_lower}_pairs_init(${store_pairs_type} *pairs, size_t initial_size)
 {
     pairs->pairs  = palloc0(initial_size * sizeof(${store_pair_type}));
     pairs->used   = 0;
@@ -83,12 +83,12 @@ ${store_type}_pairs_init(${store_pairs_type} *pairs, size_t initial_size)
  * insert key value to IStorePairs
  */
 void
-${store_type}_pairs_insert(${store_pairs_type} *pairs, ${keytype} key, ${valtype} val)
+${store_type_lower}_pairs_insert(${store_pairs_type} *pairs, ${keytype} key, ${valtype} val)
 {
     if (pairs->size == pairs->used)
     {
         if (pairs->used == PAIRS_MAX(${store_pair_type}))
-            elog(ERROR, "${store_type} can't have more than %lu keys", PAIRS_MAX(${store_pair_type}));
+            elog(ERROR, "${store_type_lower} can't have more than %lu keys", PAIRS_MAX(${store_pair_type}));
 
         pairs->size *= 2;
         // overflow check pairs->size should have been grown but not exceed PAIRS_MAX(${store_pair_type})
@@ -103,7 +103,7 @@ ${store_type}_pairs_insert(${store_pairs_type} *pairs, ${keytype} key, ${valtype
     //pairs->buflen += digits32(key) + digits32(val) + BUFLEN_OFFSET;
 
     if (pairs->buflen < 0)
-        elog(ERROR, "${store_type} buffer overflow");
+        elog(ERROR, "${store_type_lower} buffer overflow");
     pairs->used++;
 }
 

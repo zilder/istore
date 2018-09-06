@@ -6,7 +6,8 @@ declare -A istore=(
     [valsize]=4
     [sql_key_type]=int4
     [key_in_f]=int4in
-    [key_out_f]=int4out)
+    [key_out_f]=int4out
+    [val_out_f]=int4out)
 
 declare -A bigistore=(
     [name]=BigIStore
@@ -14,7 +15,8 @@ declare -A bigistore=(
     [valsize]=8
     [sql_key_type]=int4
     [key_in_f]=int4in
-    [key_out_f]=int4out)
+    [key_out_f]=int4out
+    [val_out_f]=int8out)
 
 declare -A dateistore=(
     [name]=DateIStore
@@ -22,7 +24,8 @@ declare -A dateistore=(
     [valsize]=8
     [sql_key_type]=date
     [key_in_f]=date_in
-    [key_out_f]=date_out)
+    [key_out_f]=date_out
+    [val_out_f]=int4out)
 
 declare -a types=( istore bigistore dateistore )
 
@@ -33,7 +36,8 @@ generate_c() {
     valbytes=$3
     keyin=$5
     keyout=$6
-    valout=$7
+    valin="int${valbytes}in"
+    valout="int${valbytes}out"
     keybits=$(($keybytes * 8))
     valbits=$(($valbytes * 8))
     lowertypename=`echo $typename | tr '[:upper:]' '[:lower:]'`
@@ -105,6 +109,7 @@ generate_c() {
         \n
         #define key_input_func $keyin\n
         #define key_output_func $keyout\n
+        #define val_input_func $valin\n
         #define val_output_func $valout\n
     "
 
@@ -127,44 +132,14 @@ generate_sql() {
         sql/istore.sql.template > sql/${lowertypename}.sql
 }
 
-generate_pairs() {
-    typenames=( "$@" )
-    code=""
-
-    for arrname in "${typenames[@]}"
-    do
-        declare -nl arrptr="$arrname"
-        typename="${arrptr[name]}"
-        keysize="${arrptr[keysize]}"
-        valsize="${arrptr[valsize]}"
-        keybits=$((${keysize} * 8))
-        valbits=$((${valsize} * 8))
-        store_type=`echo "$typename" | tr '[:upper:]' '[:lower:]'`
-
-        # extract template
-        t=`awk '/{%/{p=1;next}/%}/{p=0}p' src/pairs.c.template`
-        # /%}/{p=0};p;/{%/{p=1}
-
-        # replace template params with apropriate values
-        code+=`echo "$t" | sed -e "s/\\${store_type}/${store_type}/g" \
-                               -e "s/\\${store_pairs_type}/${typename}Pairs/g" \
-                               -e "s/\\${store_pair_type}/${typename}Pair/g" \
-                               -e "s/\\${keytype}/int${keybits}/g" \
-                               -e "s/\\${valtype}/int${valbits}/g"`
-    done
-
-    # replace template between {% and %} with generated code
-    echo "$code" > /tmp/pairs_funcs.c 
-    cat src/pairs.c.template | sed -e "/{%/r /tmp/pairs_funcs.c" \
-                                   -e "/{%/,/%}/d" > src/pairs.c
-}
-
-generate_header() {
+generate_c_from_template() {
+    template=$1
+    output=$2 && shift 2
     typenames=( "$@" )
     code=""
 
     # extract template
-    t=`awk '/{%/{p=1;next}/%}/{p=0}p' src/istore.h.template`
+    t=`awk '/{%/{p=1;next}/%}/{p=0}p' $template`
 
     for arrname in "${typenames[@]}"
     do
@@ -186,9 +161,17 @@ generate_header() {
     done
 
     # replace template between {% and %} with generated code
-    echo "$code" > /tmp/istore_generated.h
-    cat src/istore.h.template | sed -e "/{%/r /tmp/istore_generated.h" \
-                                    -e "/{%/,/%}/d" > src/istore.h
+    echo "$code" > /tmp/filled_template.tmp
+    cat $template | sed -e "/{%/r /tmp/filled_template.tmp" \
+                        -e "/{%/,/%}/d" > $output
+}
+
+generate_pairs() {
+    generate_c_from_template 'src/pairs.c.template' 'src/pairs.c' $@
+}
+
+generate_header() {
+    generate_c_from_template 'src/istore.h.template' 'src/istore.h' $@
 }
 
 generate() {
@@ -196,11 +179,9 @@ generate() {
     generate_sql $@
 }
 
-generate IStore     4 4 int4 int4in  int4out  int4out
-generate BigIStore  4 8 int4 int4in  int4out  int8out
-generate DateIStore 8 8 date date_in date_out int8out
-
-
+generate IStore     4 4 int4 int4in  int4out
+generate BigIStore  4 8 int4 int4in  int4out
+generate DateIStore 8 8 date date_in date_out
 
 generate_pairs "${types[@]}" 
 generate_header "${types[@]}"
