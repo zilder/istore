@@ -1,4 +1,3 @@
-#http://blog.pgxn.org/post/4783001135/extension-makefiles pg makefiles
 EXTENSION = istore
 EXTVERSION = 0.1.8
 PG_CONFIG ?= pg_config
@@ -14,7 +13,7 @@ REGRESS_OPTS = --inputdir=test --load-language=plpgsql
 PG_CPPFLAGS  = --std=c99
 include $(PGXS)
 
-istore--$(EXTVERSION).sql: sql/head.sql sql/bigistore.sql sql/istore.sql sql/dateistore.sql sql/crosstype.sql
+istore--$(EXTVERSION).sql: sql/types.sql sql/istore.sql
 	cat $^ >$@
 
 src/istore_type.c src/bigistore_type.c sql/istore.sql sql/bigistore.sql sql/dateistore.sql:

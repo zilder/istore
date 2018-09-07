@@ -1,0 +1,41 @@
+/*
+ * istore extension for PostgreSQL
+ */
+
+/* Complain if script is sourced in psql, rather than via CREATE EXTENSION */
+--\echo Use "CREATE EXTENSION istore" to load this file. \quit
+
+{%
+
+
+/*
+ * ${store_type} type and IO functions
+ */
+CREATE FUNCTION ${store_type}_in(cstring)
+    RETURNS ${store_type}
+    AS 'istore'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION ${store_type}_out(${store_type})
+    RETURNS cstring
+    AS 'istore'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION ${store_type}_send(${store_type})
+    RETURNS bytea
+    AS 'istore'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION ${store_type}_recv(internal)
+    RETURNS ${store_type}
+    AS 'istore'
+    LANGUAGE C IMMUTABLE STRICT;
+
+CREATE TYPE ${store_type} (
+    INPUT   = ${store_type}_in,
+    OUTPUT  = ${store_type}_out,
+    RECEIVE = ${store_type}_recv,
+    SEND    = ${store_type}_send,
+    STORAGE = EXTENDED
+);
+%}

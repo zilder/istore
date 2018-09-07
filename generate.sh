@@ -120,16 +120,31 @@ generate_c() {
 }
 
 generate_sql() {
-    typename=$1
-    keybytes=$2
-    valbytes=$3
-    pg_keytype=$4
-    lowertypename=`echo $typename | tr '[:upper:]' '[:lower:]'`
+    template=$1
+    output=$2 && shift 2
+    typenames=( "$@" )
+    code=""
 
-    sed -e "s/%type%/${lowertypename}/g" \
-        -e "s/%valtype%/int${valbytes}/g" \
-        -e "s/%keytype%/${pg_keytype}/g" \
-        sql/istore.sql.template > sql/${lowertypename}.sql
+    # extract template
+    t=`awk '/{%/{p=1;next}/%}/{p=0}p' $template`
+
+    for arrname in "${typenames[@]}"
+    do
+        declare -nl arrptr="$arrname"
+        store_type=`echo "${arrptr[name]}" | tr '[:upper:]' '[:lower:]'`
+        keytype="${arrptr[sql_key_type]}"
+        valtype="int${arrptr[valsize]}"
+
+        # replace template params with apropriate values
+        code+=`echo "$t" | sed -e "s/\\${store_type}/${store_type}/g" \
+                               -e "s/\\${keytype}/${keytype}/g" \
+                               -e "s/\\${valtype}/${valtype}/g"`
+    done
+
+    # replace template between {% and %} with generated code
+    echo "$code" > /tmp/filled_template.tmp
+    cat $template | sed -e "/{%/r /tmp/filled_template.tmp" \
+                        -e "/{%/,/%}/d" > $output
 }
 
 generate_c_from_template() {
@@ -166,22 +181,18 @@ generate_c_from_template() {
                         -e "/{%/,/%}/d" > $output
 }
 
-generate_pairs() {
-    generate_c_from_template 'src/pairs.c.template' 'src/pairs.c' $@
-}
-
-generate_header() {
-    generate_c_from_template 'src/istore.h.template' 'src/istore.h' $@
-}
-
 generate() {
     generate_c $@
-    generate_sql $@
+    #generate_sql $@
 }
 
 generate IStore     4 4 int4 int4in  int4out
 generate BigIStore  4 8 int4 int4in  int4out
 generate DateIStore 8 8 date date_in date_out
 
-generate_pairs "${types[@]}" 
-generate_header "${types[@]}"
+generate_c_from_template 'src/pairs.c.template' 'src/pairs.c' "${types[@]}"
+generate_c_from_template 'src/istore.h.template' 'src/istore.h' "${types[@]}"
+#generate_c_from_template 'src/istore_key_gin.c.template' 'src/istore_key_gin.c' "${types[@]}"
+
+generate_sql "sql/istore.sql.template" "sql/istore.sql" "${types[@]}"
+generate_sql "sql/types.sql.template" "sql/types.sql" "${types[@]}"

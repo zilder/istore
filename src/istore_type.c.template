@@ -86,7 +86,7 @@ STORE_FUNCTION(recv)
         StoreValue val = BUF_READ_VALUE(buf);
         store_pairs_insert(creator, key, val);
     }
-    FINALIZE_ISTORE(result, creator);
+    FINALIZE_STORE(result, creator);
     PG_RETURN_POINTER(result);
 }
 
