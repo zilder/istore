@@ -53,12 +53,13 @@ bigistore_add_buflen(BigIStore *istore)
 }
 
 {%
+
 /*
  * adds a key/ value pair for each subnode to IStorePairs
  * due to the nature of the AVL tree the pairs will be ordered by key
  */
 void
-${store_type_lower}_tree_to_pairs(AvlNode *p, ${store_pairs_type} *pairs)
+${store_type_lower}_tree_to_pairs(AvlNode *p, ${store_type}Pairs *pairs)
 {
     if (p == NULL)
         return;
@@ -71,9 +72,9 @@ ${store_type_lower}_tree_to_pairs(AvlNode *p, ${store_pairs_type} *pairs)
  * initialize IStorePairs
  */
 void
-${store_type_lower}_pairs_init(${store_pairs_type} *pairs, size_t initial_size)
+${store_type_lower}_pairs_init(${store_type}Pairs *pairs, size_t initial_size)
 {
-    pairs->pairs  = palloc0(initial_size * sizeof(${store_pair_type}));
+    pairs->pairs  = palloc0(initial_size * sizeof(${store_type}Pair));
     pairs->used   = 0;
     pairs->size   = initial_size;
     pairs->buflen = 0;
@@ -83,19 +84,19 @@ ${store_type_lower}_pairs_init(${store_pairs_type} *pairs, size_t initial_size)
  * insert key value to IStorePairs
  */
 void
-${store_type_lower}_pairs_insert(${store_pairs_type} *pairs, ${keytype} key, ${valtype} val)
+${store_type_lower}_pairs_insert(${store_type}Pairs *pairs, ${keytype} key, ${valtype} val)
 {
     if (pairs->size == pairs->used)
     {
-        if (pairs->used == PAIRS_MAX(${store_pair_type}))
-            elog(ERROR, "${store_type_lower} can't have more than %lu keys", PAIRS_MAX(${store_pair_type}));
+        if (pairs->used == PAIRS_MAX(${store_type}Pair))
+            elog(ERROR, "${store_type_lower} can't have more than %lu keys", PAIRS_MAX(${store_type}Pair));
 
         pairs->size *= 2;
-        // overflow check pairs->size should have been grown but not exceed PAIRS_MAX(${store_pair_type})
-        if (pairs->size < pairs->used || pairs->size > PAIRS_MAX(${store_pair_type}))
-            pairs->size = PAIRS_MAX(${store_pair_type});
+        // overflow check pairs->size should have been grown but not exceed PAIRS_MAX(${store_type}Pair)
+        if (pairs->size < pairs->used || pairs->size > PAIRS_MAX(${store_type}Pair))
+            pairs->size = PAIRS_MAX(${store_type}Pair);
 
-        pairs->pairs = repalloc(pairs->pairs, pairs->size * sizeof(${store_pair_type}));
+        pairs->pairs = repalloc(pairs->pairs, pairs->size * sizeof(${store_type}Pair));
     }
 
     pairs->pairs[pairs->used].key = key;

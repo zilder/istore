@@ -6,8 +6,7 @@ declare -A istore=(
     [valsize]=4
     [sql_key_type]=int4
     [key_in_f]=int4in
-    [key_out_f]=int4out
-    [val_out_f]=int4out)
+    [key_out_f]=int4out)
 
 declare -A bigistore=(
     [name]=BigIStore
@@ -15,8 +14,7 @@ declare -A bigistore=(
     [valsize]=8
     [sql_key_type]=int4
     [key_in_f]=int4in
-    [key_out_f]=int4out
-    [val_out_f]=int8out)
+    [key_out_f]=int4out)
 
 declare -A dateistore=(
     [name]=DateIStore
@@ -24,8 +22,7 @@ declare -A dateistore=(
     [valsize]=8
     [sql_key_type]=date
     [key_in_f]=date_in
-    [key_out_f]=date_out
-    [val_out_f]=int4out)
+    [key_out_f]=date_out)
 
 declare -a types=( istore bigistore dateistore )
 
@@ -45,24 +42,8 @@ generate_c() {
 
     if [ $keybytes -le 4 ]; then
         align="'i'"
-        io_macros="
-            #define BUF_READ_KEY(buf) pq_getmsgint(buf, $keybytes)\n
-            #define BUF_STORE_KEY(buf, key) pq_sendint(buf, key, $keybytes)\n"
     else
         align="'d'"
-        io_macros="
-            #define BUF_READ_KEY(buf) pq_getmsgint64(buf)\n
-            #define BUF_STORE_KEY(buf, key) pq_sendint64(buf, key)\n"
-    fi
-
-    if [ $valbytes -le 4 ]; then
-        io_macros+="
-            #define BUF_READ_VALUE(buf) pq_getmsgint(buf, $valbytes)\n
-            #define BUF_STORE_VALUE(buf, val) pq_sendint(buf, val, $valbytes)\n"
-    else
-        io_macros+="
-            #define BUF_READ_VALUE(buf) pq_getmsgint64(buf)\n
-            #define BUF_STORE_VALUE(buf, val) pq_sendint64(buf, val)\n"
     fi
 
     # typedefs
@@ -112,8 +93,6 @@ generate_c() {
         #define val_input_func $valin\n
         #define val_output_func $valout\n
     "
-
-    defines+=$io_macros
 
     defines=`echo $defines | tr '\n' "\\n"`
     sed -e "s/\${defines}/$defines/" src/istore_type.c.template > src/${lowertypename}_type.c
@@ -165,14 +144,20 @@ generate_c_from_template() {
         keybits=$((${keysize} * 8))
         valbits=$((${valsize} * 8))
         store_type_lower=`echo "$store_type" | tr '[:upper:]' '[:lower:]'`
+        store_type_upper=`echo "$store_type" | tr '[:lower:]' '[:upper:]'`
 
         # replace template params with apropriate values
         code+=`echo "$t" | sed -e "s/\\${store_type}/${store_type}/g" \
                                -e "s/\\${store_type_lower}/${store_type_lower}/g" \
-                               -e "s/\\${store_pairs_type}/${store_type}Pairs/g" \
-                               -e "s/\\${store_pair_type}/${store_type}Pair/g" \
+                               -e "s/\\${store_type_upper}/${store_type_upper}/g" \
+                               -e "s/\\${keysize}/${keysize}/g" \
+                               -e "s/\\${valsize}/${valsize}/g" \
+                               -e "s/\\${keybits}/${keybits}/g" \
+                               -e "s/\\${valbits}/${valbits}/g" \
                                -e "s/\\${keytype}/int${keybits}/g" \
-                               -e "s/\\${valtype}/int${valbits}/g"`
+                               -e "s/\\${valtype}/int${valbits}/g" \
+                               -e "s/\\${keyin}/${arrptr[key_in_f]}/g" \
+                               -e "s/\\${keyout}/${arrptr[key_out_f]}/g"`
     done
 
     # replace template between {% and %} with generated code
@@ -191,6 +176,7 @@ generate BigIStore  4 8 int4 int4in  int4out
 generate DateIStore 8 8 date date_in date_out
 
 generate_c_from_template 'src/pairs.c.template' 'src/pairs.c' "${types[@]}"
+generate_c_from_template 'src/istore_io.c.template' 'src/istore_io.c' "${types[@]}"
 generate_c_from_template 'src/istore.h.template' 'src/istore.h' "${types[@]}"
 #generate_c_from_template 'src/istore_key_gin.c.template' 'src/istore_key_gin.c' "${types[@]}"
 
