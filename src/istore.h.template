@@ -14,7 +14,7 @@
 
 
 /*
- * ${store_type} definitions
+ * ${store} definitions
  */
 
 /*
@@ -24,18 +24,18 @@ typedef struct
 {
     ${keytype} key;
     ${valtype} val;
-} ${store_type}Pair;
+} ${store}Pair;
 
 /*
  * collection of pairs
  */
 typedef struct
 {
-    ${store_type}Pair *pairs;
+    ${store}Pair *pairs;
     size_t      size;
     int         used;
     int         buflen;
-} ${store_type}Pairs;
+} ${store}Pairs;
 
 /*
  * the istore
@@ -45,21 +45,14 @@ typedef struct
     int32 __varlen;
     int32 buflen;
     int32 len;
-} ${store_type};
+} ${store};
 
-void ${store_type_lower}_pairs_init(${store_type}Pairs *pairs, size_t initial_size);
-void ${store_type_lower}_pairs_insert(${store_type}Pairs *pairs, ${keytype} key, ${valtype} val);
-int ${store_type_lower}_pairs_cmp(const void *a, const void *b);
-void ${store_type_lower}_tree_to_pairs(AvlNode *p, ${store_type}Pairs *pairs);
-${store_type} *${store_type_lower}_find(${store_type} *is, ${keytype} key, int *off_out);
+void ${store_lower}_pairs_init(${store}Pairs *pairs, size_t initial_size);
+void ${store_lower}_pairs_insert(${store}Pairs *pairs, ${keytype} key, ${valtype} val);
+int ${store_lower}_pairs_cmp(const void *a, const void *b);
+void ${store_lower}_tree_to_pairs(AvlNode *p, ${store}Pairs *pairs);
 
 %}
-
-IStore *istore_merge(IStore *arg1, IStore *arg2, PGFunction mergefunc, PGFunction miss1func);
-IStore *istore_apply_datum(IStore *arg1, Datum arg2, PGFunction applyfunc);
-
-BigIStore *bigistore_merge(BigIStore *arg1, BigIStore *arg2, PGFunction mergefunc, PGFunction miss1func);
-BigIStore *bigistore_apply_datum(BigIStore *arg1, Datum arg2, PGFunction applyfunc);
 
 void           istore_copy_and_add_buflen(IStore *istore, BigIStorePair *pairs);
 void           bigistore_add_buflen(BigIStore *istore);

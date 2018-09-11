@@ -11,25 +11,25 @@
 
 
 /*
- * ${store_type} IO routines
+ * ${store} IO routines
  */
 
-#define Store ${store_type}
-#define StorePair ${store_type}Pair
-#define StorePairs ${store_type}Pairs
+#define Store ${store}
+#define StorePair ${store}Pair
+#define StorePairs ${store}Pairs
 #define Key int${keybits}
 #define Val int${valbits}
 #define KeyGetDatum Int${keybits}GetDatum
 #define ValueGetDatum Int${valbits}GetDatum
-#define PG_GETARG_STORE PG_GETARG_${store_type_upper}
+#define PG_GETARG_STORE PG_GETARG_${store_upper}
 
-PG_FUNCTION_INFO_V1(${store_type_lower}_out);
+PG_FUNCTION_INFO_V1(${store_lower}_out);
 Datum
-${store_type_lower}_out(PG_FUNCTION_ARGS)
+${store_lower}_out(PG_FUNCTION_ARGS)
 {
-    ${store_type} *in;
-    int i;
-    ${store_type}Pair *pairs;
+    Store     *in;
+    int        i;
+    StorePair *pairs;
     StringInfoData s;
 
     in = PG_GETARG_STORE(0);
@@ -53,9 +53,9 @@ ${store_type_lower}_out(PG_FUNCTION_ARGS)
     PG_RETURN_CSTRING(s.data);
 }
 
-PG_FUNCTION_INFO_V1(${store_type_lower}_in);
+PG_FUNCTION_INFO_V1(${store_lower}_in);
 Datum
-${store_type_lower}_in(PG_FUNCTION_ARGS)
+${store_lower}_in(PG_FUNCTION_ARGS)
 {
     ISParser     parser = {
         .keyin = ${keyin},
@@ -79,24 +79,24 @@ ${store_type_lower}_in(PG_FUNCTION_ARGS)
 
     pairs = palloc0(sizeof(StorePairs));
     n = is_tree_length(tree);
-    ${store_type_lower}_pairs_init(pairs, n);
-    ${store_type_lower}_tree_to_pairs(tree, pairs);
+    ${store_lower}_pairs_init(pairs, n);
+    ${store_lower}_tree_to_pairs(tree, pairs);
     istore_make_empty(tree);
-    FINALIZE_${store_type_upper}(out, pairs);
+    FINALIZE_${store_upper}(out, pairs);
     PG_RETURN_POINTER(out);
 }
 
-PG_FUNCTION_INFO_V1(${store_type_lower}_recv);
+PG_FUNCTION_INFO_V1(${store_lower}_recv);
 Datum
-${store_type_lower}_recv(PG_FUNCTION_ARGS)
+${store_lower}_recv(PG_FUNCTION_ARGS)
 {
-    Store *result;
-    StringInfo buf = (StringInfo) PG_GETARG_POINTER(0);
-    int i = 0;
+    Store      *result;
+    StringInfo  buf = (StringInfo) PG_GETARG_POINTER(0);
+    int         i = 0;
     StorePairs *creator = palloc0(sizeof *creator);
-    int32 len = pq_getmsgint(buf, 4);
+    int32       len = pq_getmsgint(buf, 4);
 
-    ${store_type_lower}_pairs_init(creator, len);
+    ${store_lower}_pairs_init(creator, len);
 
     for (; i < len; ++i)
     {
@@ -112,19 +112,19 @@ ${store_type_lower}_recv(PG_FUNCTION_ARGS)
         Val val = pq_getmsgint64(buf);
 #endif
 
-        ${store_type_lower}_pairs_insert(creator, key, val);
+        ${store_lower}_pairs_insert(creator, key, val);
     }
-    FINALIZE_${store_type_upper}(result, creator);
+    FINALIZE_${store_upper}(result, creator);
     PG_RETURN_POINTER(result);
 }
 
-PG_FUNCTION_INFO_V1(${store_type_lower}_send);
+PG_FUNCTION_INFO_V1(${store_lower}_send);
 Datum
-${store_type_lower}_send(PG_FUNCTION_ARGS)
+${store_lower}_send(PG_FUNCTION_ARGS)
 {
-    Store *in = PG_GETARG_STORE(0);
+    Store     *in = PG_GETARG_STORE(0);
     StorePair *pairs= FIRST_PAIR(in, StorePair);
-    int i = 0;
+    int        i = 0;
     StringInfoData buf;
 
     pq_begintypsend(&buf);
@@ -145,6 +145,36 @@ ${store_type_lower}_send(PG_FUNCTION_ARGS)
 
     }
     PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
+}
+
+PG_FUNCTION_INFO_V1(${store_lower}_to_json);
+Datum
+${store_lower}_to_json(PG_FUNCTION_ARGS)
+{
+    Store          *is = PG_GETARG_STORE(0);
+    StorePair      *pairs;
+    int             i;
+    StringInfoData  dst;
+
+    if (is->len == 0)
+        PG_RETURN_TEXT_P(cstring_to_text_with_len("{}", 2));
+
+    pairs   = FIRST_PAIR(is, StorePair);
+    initStringInfo(&dst);
+    appendStringInfoChar(&dst, '{');
+
+    for (i = 0; i < is->len; i++)
+    {
+        appendStringInfoString(&dst, "\"");
+        appendStringInfoString(&dst, (char *) DirectFunctionCall1(${keyout}, KeyGetDatum(pairs[i].key)));
+        appendStringInfoString(&dst, "\": ");
+        appendStringInfoString(&dst, (char *) DirectFunctionCall1(int${valsize}out, ValueGetDatum(pairs[i].val))); 
+        if (i + 1 != is->len)
+            appendStringInfoString(&dst, ", ");
+    }
+    appendStringInfoChar(&dst, '}');
+
+    PG_RETURN_TEXT_P(cstring_to_text(dst.data));
 }
 
 #undef Store

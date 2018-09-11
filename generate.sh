@@ -58,8 +58,6 @@ generate_c() {
 
     # defines
     defines+="
-        #define KEYSIZE ${keybytes}\n
-        #define VALUESIZE ${valbytes}\n
         #define KEYOID INT${keybytes}OID\n
         #define VALUEOID INT${valbytes}OID\n
         #define VALUE_ALIGN $align\n
@@ -138,18 +136,18 @@ generate_c_from_template() {
     for arrname in "${typenames[@]}"
     do
         declare -nl arrptr="$arrname"
-        store_type="${arrptr[name]}"
+        store="${arrptr[name]}"
         keysize="${arrptr[keysize]}"
         valsize="${arrptr[valsize]}"
         keybits=$((${keysize} * 8))
         valbits=$((${valsize} * 8))
-        store_type_lower=`echo "$store_type" | tr '[:upper:]' '[:lower:]'`
-        store_type_upper=`echo "$store_type" | tr '[:lower:]' '[:upper:]'`
+        store_lower=`echo "$store" | tr '[:upper:]' '[:lower:]'`
+        store_upper=`echo "$store" | tr '[:lower:]' '[:upper:]'`
 
         # replace template params with apropriate values
-        code+=`echo "$t" | sed -e "s/\\${store_type}/${store_type}/g" \
-                               -e "s/\\${store_type_lower}/${store_type_lower}/g" \
-                               -e "s/\\${store_type_upper}/${store_type_upper}/g" \
+        code+=`echo "$t" | sed -e "s/\\${store}/${store}/g" \
+                               -e "s/\\${store_lower}/${store_lower}/g" \
+                               -e "s/\\${store_upper}/${store_upper}/g" \
                                -e "s/\\${keysize}/${keysize}/g" \
                                -e "s/\\${valsize}/${valsize}/g" \
                                -e "s/\\${keybits}/${keybits}/g" \
@@ -166,17 +164,19 @@ generate_c_from_template() {
                         -e "/{%/,/%}/d" > $output
 }
 
-generate() {
-    generate_c $@
-    #generate_sql $@
-}
-
-generate IStore     4 4 int4 int4in  int4out
-generate BigIStore  4 8 int4 int4in  int4out
-generate DateIStore 8 8 date date_in date_out
+#generate() {
+#    generate_c $@
+#    #generate_sql $@
+#}
+#
+#generate IStore     4 4 int4 int4in  int4out
+#generate BigIStore  4 8 int4 int4in  int4out
+#generate DateIStore 8 8 date date_in date_out
 
 generate_c_from_template 'src/pairs.c.template' 'src/pairs.c' "${types[@]}"
 generate_c_from_template 'src/istore_io.c.template' 'src/istore_io.c' "${types[@]}"
+generate_c_from_template 'src/istore_type.c.template' 'src/istore_type.c' "${types[@]}"
+generate_c_from_template 'src/istore_agg.c.template' 'src/istore_agg.c' "${types[@]}"
 generate_c_from_template 'src/istore.h.template' 'src/istore.h' "${types[@]}"
 #generate_c_from_template 'src/istore_key_gin.c.template' 'src/istore_key_gin.c' "${types[@]}"
 
