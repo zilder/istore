@@ -1,5 +1,23 @@
 #!/usr/bin/bash
 
+#
+# Source code generator
+#
+# Basicly it takes template files, extracts part between {% and %} and
+# replaces template parameters (e.g. ${store}) with actual values. To add new
+# type just create a new associative array as follows and add it to the `types`
+# array:
+#
+#    declare -A datestore=(
+#        [name]=DateStore       # name of new SQL type 
+#        [keysize]=4            # size of key in bytes (max 8 bytes)
+#        [valsize]=4            # size of value in bytes (max 8 bytes)
+#        [sql_key_type]=date    # SQL type of the key
+#        [key_in_f]=date_in     # C input function for key
+#        [key_out_f]=date_out)  # C output function for key
+#
+
+
 declare -A istore=(
     [name]=IStore
     [keysize]=4
@@ -26,75 +44,6 @@ declare -A dateistore=(
 
 declare -a types=( istore bigistore dateistore )
 
-
-generate_c() {
-    typename=$1
-    keybytes=$2
-    valbytes=$3
-    keyin=$5
-    keyout=$6
-    valin="int${valbytes}in"
-    valout="int${valbytes}out"
-    keybits=$(($keybytes * 8))
-    valbits=$(($valbytes * 8))
-    lowertypename=`echo $typename | tr '[:upper:]' '[:lower:]'`
-    uppertypename=`echo $typename | tr '[:lower:]' '[:upper:]'`
-
-    if [ $keybytes -le 4 ]; then
-        align="'i'"
-    else
-        align="'d'"
-    fi
-
-    # typedefs
-    defines="
-        typedef $typename Store;\n
-        typedef ${typename}Pair StorePair;\n
-        typedef ${typename}Pairs StorePairs;\n
-        typedef int${keybits} Key;\n
-        typedef int${valbits} StoreValue;\n
-        \n
-    "
-
-    # defines
-    defines+="
-        #define KEYOID INT${keybytes}OID\n
-        #define VALUEOID INT${valbytes}OID\n
-        #define VALUE_ALIGN $align\n
-        #define KeyGetDatum Int${keybits}GetDatum\n
-        #define ValueGetDatum Int${valbits}GetDatum\n
-        #define key_cmp is_int${keybits}_arr_comp\n
-        \n
-    "
-
-    # macros
-    defines+="
-        #define STORE_FUNCTION(FUNC) \\\\\n
-        PG_FUNCTION_INFO_V1(${lowertypename}_ ## FUNC); \\\\\n
-        Datum ${lowertypename}_ ## FUNC(PG_FUNCTION_ARGS) \n
-        \n
-        #define FINALIZE_STORE FINALIZE_${uppertypename}\n
-        #define PG_GETARG_STORE PG_GETARG_${uppertypename}\n
-        #define PG_GETARG_STORE_COPY PG_GETARG_${uppertypename}_COPY\n
-        #define PG_GETARG_KEY PG_GETARG_INT${keybits}\n
-        #define PG_GETARG_VALUE PG_GETARG_INT${valbits}\n
-        #define store_tree_to_pairs ${lowertypename}_tree_to_pairs\n
-        #define store_pairs_init ${lowertypename}_pairs_init\n
-        #define store_pairs_insert ${lowertypename}_pairs_insert\n
-        #define plus_func int${valbytes}pl\n
-        #define minus_func int${valbytes}mi\n
-        #define div_func int${valbytes}div\n
-        #define mul_func int${valbytes}mul\n
-        \n
-        #define key_input_func $keyin\n
-        #define key_output_func $keyout\n
-        #define val_input_func $valin\n
-        #define val_output_func $valout\n
-    "
-
-    defines=`echo $defines | tr '\n' "\\n"`
-    sed -e "s/\${defines}/$defines/" src/istore_type.c.template > src/${lowertypename}_type.c
-}
 
 generate_sql() {
     template=$1
@@ -139,8 +88,8 @@ generate_c_from_template() {
         store="${arrptr[name]}"
         keysize="${arrptr[keysize]}"
         valsize="${arrptr[valsize]}"
-        keybits=$((${keysize} * 8))
-        valbits=$((${valsize} * 8))
+        keybits=$(($keysize * 8))
+        valbits=$(($valsize * 8))
         store_lower=`echo "$store" | tr '[:upper:]' '[:lower:]'`
         store_upper=`echo "$store" | tr '[:lower:]' '[:upper:]'`
 
@@ -164,21 +113,29 @@ generate_c_from_template() {
                         -e "/{%/,/%}/d" > $output
 }
 
-#generate() {
-#    generate_c $@
-#    #generate_sql $@
-#}
+
+echo "Generating C files"
+for template in src/*.template
+do
+    output="${template%.*}"
+    echo -ne "\t${output}..."
+    generate_c_from_template $template $output "${types[@]}"
+    echo "done"
+done
+
+echo "Generating SQL files"
+for template in sql/*.template
+do
+    output="${template%.*}"
+    echo -ne "\t${output}..."
+    generate_sql $template $output "${types[@]}"
+    echo "done"
+done
+#generate_c_from_template 'src/pairs.c.template' 'src/pairs.c' "${types[@]}"
+#generate_c_from_template 'src/istore_io.c.template' 'src/istore_io.c' "${types[@]}"
+#generate_c_from_template 'src/istore_type.c.template' 'src/istore_type.c' "${types[@]}"
+#generate_c_from_template 'src/istore_agg.c.template' 'src/istore_agg.c' "${types[@]}"
+#generate_c_from_template 'src/istore.h.template' 'src/istore.h' "${types[@]}"
 #
-#generate IStore     4 4 int4 int4in  int4out
-#generate BigIStore  4 8 int4 int4in  int4out
-#generate DateIStore 8 8 date date_in date_out
-
-generate_c_from_template 'src/pairs.c.template' 'src/pairs.c' "${types[@]}"
-generate_c_from_template 'src/istore_io.c.template' 'src/istore_io.c' "${types[@]}"
-generate_c_from_template 'src/istore_type.c.template' 'src/istore_type.c' "${types[@]}"
-generate_c_from_template 'src/istore_agg.c.template' 'src/istore_agg.c' "${types[@]}"
-generate_c_from_template 'src/istore.h.template' 'src/istore.h' "${types[@]}"
-#generate_c_from_template 'src/istore_key_gin.c.template' 'src/istore_key_gin.c' "${types[@]}"
-
-generate_sql "sql/istore.sql.template" "sql/istore.sql" "${types[@]}"
-generate_sql "sql/types.sql.template" "sql/types.sql" "${types[@]}"
+#generate_sql "sql/istore.sql.template" "sql/istore.sql" "${types[@]}"
+#generate_sql "sql/types.sql.template" "sql/types.sql" "${types[@]}"
