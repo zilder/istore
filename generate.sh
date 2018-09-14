@@ -4,20 +4,13 @@
 # Source code generator
 #
 # Basicly it takes template files, extracts part between {% and %} and
-# replaces template parameters (e.g. ${store}) with actual values. To add new
-# type just create a new associative array as follows and add it to the `types`
-# array:
-#
-#    declare -A datestore=(
-#        [name]=DateStore       # name of new SQL type 
-#        [keysize]=4            # size of key in bytes (max 8 bytes)
-#        [valsize]=4            # size of value in bytes (max 8 bytes)
-#        [sql_key_type]=date    # SQL type of the key
-#        [key_in_f]=date_in     # C input function for key
-#        [key_out_f]=date_out)  # C output function for key
+# replaces template parameters (e.g. ${store}) with actual values. To generate
+# new extension create `config` file (see config.sample as reference) and
+# run
+#   ./generate
 #
 
-extname=mystore
+extname=mystore      # defualt extension name
 declare -a types=()
 
 # load config
@@ -58,7 +51,7 @@ generate_sql() {
                   | sed -e "s/\${extname}/${extname}/g" > $output
 }
 
-generate_c_from_template() {
+generate_c() {
     template=$1
     output=$2 && shift 2
     typenames=( "$@" )
@@ -109,7 +102,7 @@ DATA_built = $extname--\$(EXTVERSION).sql
 DATA = \$(wildcard *--*.sql)
 PGXS := \$(shell \$(PG_CONFIG) --pgxs)
 MODULE_big = $extname
-OBJS = src/istore.o src/avl.o src/is_parser.o src/istore_cast.o src/istore_io.o src/istore_key_gin.o src/pairs.o src/istore_agg.o src/istore_type.o
+OBJS = src/avl.o src/is_parser.o src/istore_cast.o src/istore_io.o src/istore_key_gin.o src/pairs.o src/istore_agg.o src/istore_type.o
 TESTS        = \$(wildcard test/sql/*.sql)
 REGRESS      = \$(patsubst test/sql/%.sql,%,\$(TESTS))
 REGRESS_OPTS = --inputdir=test --load-language=plpgsql
@@ -141,7 +134,7 @@ for template in src/*.template
 do
     output="${template%.*}"
     echo -ne "\t${output}..."
-    generate_c_from_template $template $output "${types[@]}"
+    generate_c $template $output "${types[@]}"
     echo "done"
 done
 
