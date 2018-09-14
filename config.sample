@@ -1,0 +1,12 @@
+extname=mystore
+
+declare -A dateistore=(
+    [name]=DateIStore
+    [keysize]=4
+    [valsize]=4
+    [sql_key_type]=date
+    [key_oid]=DATEOID
+    [key_in_f]=date_in
+    [key_out_f]=date_out)
+
+types+=dateistore

@@ -30,7 +30,7 @@ BEGIN;
 -- bigistore istore_io should turn istore to json;
 -- ./spec/istore/istore_io_spec.rb:32;
 CREATE EXTENSION istore;
-SELECT istore_to_json('-2147483647 => 10, -10 => -9223372036854775807, 0 => 5, 10 => 9223372036854775806, 2147483647 => 10'::bigistore);
+SELECT bigistore_to_json('-2147483647 => 10, -10 => -9223372036854775807, 0 => 5, 10 => 9223372036854775806, 2147483647 => 10'::bigistore);
 ROLLBACK;
 BEGIN;
 -- bigistore istore_io invalid input should report invalid value input;

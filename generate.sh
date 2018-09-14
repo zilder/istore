@@ -17,33 +17,16 @@
 #        [key_out_f]=date_out)  # C output function for key
 #
 
+extname=mystore
+declare -a types=()
 
-declare -A istore=(
-    [name]=IStore
-    [keysize]=4
-    [valsize]=4
-    [sql_key_type]=int4
-    [key_in_f]=int4in
-    [key_out_f]=int4out)
-
-declare -A bigistore=(
-    [name]=BigIStore
-    [keysize]=4
-    [valsize]=8
-    [sql_key_type]=int4
-    [key_in_f]=int4in
-    [key_out_f]=int4out)
-
-declare -A dateistore=(
-    [name]=DateIStore
-    [keysize]=4
-    [valsize]=8
-    [sql_key_type]=date
-    [key_in_f]=date_in
-    [key_out_f]=date_out)
-
-declare -a types=( istore bigistore dateistore )
-
+# load config
+if [ -z "$1" ]
+then
+    source config
+else
+    source $1
+fi
 
 generate_sql() {
     template=$1
@@ -57,20 +40,22 @@ generate_sql() {
     for arrname in "${typenames[@]}"
     do
         declare -nl arrptr="$arrname"
-        store_type=`echo "${arrptr[name]}" | tr '[:upper:]' '[:lower:]'`
+        store=`echo "${arrptr[name]}" | tr '[:upper:]' '[:lower:]'`
         keytype="${arrptr[sql_key_type]}"
         valtype="int${arrptr[valsize]}"
 
         # replace template params with apropriate values
-        code+=`echo "$t" | sed -e "s/\\${store_type}/${store_type}/g" \
+        code+=`echo "$t" | sed -e "s/\\${store}/${store}/g" \
+                               -e "s/\\${keysize}/${arrptr[keysize]}/g" \
                                -e "s/\\${keytype}/${keytype}/g" \
                                -e "s/\\${valtype}/${valtype}/g"`
     done
 
-    # replace template between {% and %} with generated code
+    # Replace template between {% and %} with generated code. Also put
+    # module name to function definitions
     echo "$code" > /tmp/filled_template.tmp
-    cat $template | sed -e "/{%/r /tmp/filled_template.tmp" \
-                        -e "/{%/,/%}/d" > $output
+    cat $template | sed -e "/{%/r /tmp/filled_template.tmp" -e "/{%/,/%}/d" \
+                  | sed -e "s/\${extname}/${extname}/g" > $output
 }
 
 generate_c_from_template() {
@@ -104,7 +89,8 @@ generate_c_from_template() {
                                -e "s/\\${keytype}/int${keybits}/g" \
                                -e "s/\\${valtype}/int${valbits}/g" \
                                -e "s/\\${keyin}/${arrptr[key_in_f]}/g" \
-                               -e "s/\\${keyout}/${arrptr[key_out_f]}/g"`
+                               -e "s/\\${keyout}/${arrptr[key_out_f]}/g" \
+                               -e "s/\\${keyoid}/${arrptr[key_oid]}/g"`
     done
 
     # replace template between {% and %} with generated code
@@ -113,6 +99,42 @@ generate_c_from_template() {
                         -e "/{%/,/%}/d" > $output
 }
 
+generate_makefile() {
+    extname=$1
+    cat > Makefile <<EOL
+EXTENSION = $extname
+EXTVERSION = 1.0
+PG_CONFIG ?= pg_config
+DATA_built = $extname--\$(EXTVERSION).sql
+DATA = \$(wildcard *--*.sql)
+PGXS := \$(shell \$(PG_CONFIG) --pgxs)
+MODULE_big = $extname
+OBJS = src/istore.o src/avl.o src/is_parser.o src/istore_cast.o src/istore_io.o src/istore_key_gin.o src/pairs.o src/istore_agg.o src/istore_type.o
+TESTS        = \$(wildcard test/sql/*.sql)
+REGRESS      = \$(patsubst test/sql/%.sql,%,\$(TESTS))
+REGRESS_OPTS = --inputdir=test --load-language=plpgsql
+PG_CPPFLAGS  = --std=c99
+include \$(PGXS)
+$extname--\$(EXTVERSION).sql: sql/types.sql sql/istore.sql sql/x-parallel.sql
+	cat \$^ >\$@
+EOL
+}
+
+generate_control_file() {
+    extname=$1
+    cat > $extname.control <<EOL
+comment = 'an integer based hstore'
+default_version = '1.0'
+relocatable = true
+module_pathname = '\$libdir/$extname'
+EOL
+}
+
+echo "Generating Makefile"
+generate_makefile $extname
+
+echo "Generating control-file"
+generate_control_file $extname
 
 echo "Generating C files"
 for template in src/*.template
@@ -131,11 +153,4 @@ do
     generate_sql $template $output "${types[@]}"
     echo "done"
 done
-#generate_c_from_template 'src/pairs.c.template' 'src/pairs.c' "${types[@]}"
-#generate_c_from_template 'src/istore_io.c.template' 'src/istore_io.c' "${types[@]}"
-#generate_c_from_template 'src/istore_type.c.template' 'src/istore_type.c' "${types[@]}"
-#generate_c_from_template 'src/istore_agg.c.template' 'src/istore_agg.c' "${types[@]}"
-#generate_c_from_template 'src/istore.h.template' 'src/istore.h' "${types[@]}"
-#
-#generate_sql "sql/istore.sql.template" "sql/istore.sql" "${types[@]}"
-#generate_sql "sql/types.sql.template" "sql/types.sql" "${types[@]}"
+

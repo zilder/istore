@@ -47,6 +47,20 @@ state_init(MemoryContext agg_context)
     return state;
 }
 
+/*
+ * expand state capacity to store at least n new items
+ */
+static inline ISAggState *
+state_extend(ISAggState *state, int n)
+{
+    if (state->size < state->used + n)
+    {
+        state->size = state->size * 2 > state->used + n ? state->size * 2 : state->used + n;
+        state       = repalloc(state, sizeof(ISAggState) + state->size * sizeof(StatePair));
+    }
+    return state;
+}
+
 {%
 
 /*
@@ -63,6 +77,7 @@ ${store_lower}_agg_internal(ISAggState *state, ${store} *istore, ISAggType type)
     ${store}Pair  *pairs2;
     int         index1 = 0,
                 index2 = 0;
+    int         left;
 
     pairs1 = state->pairs;
     pairs2 = FIRST_PAIR(istore, ${store}Pair);
@@ -78,17 +93,14 @@ ${store_lower}_agg_internal(ISAggState *state, ${store} *istore, ISAggType type)
         {
             int j;
             int i = 1;
-            while(index2 + i < istore->len && pairs1->key > pairs2[i].key){
+            while(index2 + i < istore->len && pairs1->key > pairs2[i].key)
+            {
                 ++i;
             }
 
-            // ensure array is big enough
-            if (state->size < state->used + i)
-            {
-                state->size  = state->size * 2 > state->used + i ? state->size * 2 : state->used + i;
-                state        = repalloc(state, sizeof(ISAggState) + state->size * sizeof(StatePair));
-                pairs1       = state->pairs+index1;
-            }
+            // expand state capacity to store new items
+            state  = state_extend(state, i);
+            pairs1 = state->pairs + index1;
 
             // move data i steps forward from index1
             memmove(pairs1 + i, pairs1, (state->used - index1) * sizeof(StatePair));
@@ -147,19 +159,15 @@ ${store_lower}_agg_internal(ISAggState *state, ${store} *istore, ISAggType type)
     }
 
     // append any leftovers
-    int i = istore->len - index2;
-    if ( i > 0 )
+    left = istore->len - index2;
+    if ( left > 0 )
     {
-        if (state->size <= state->used + i)
-        {
-            state->size = state->size * 2 > state->used + i ? state->size * 2 : state->used + i;
-            state       = repalloc(state, sizeof(ISAggState) + state->size * sizeof(StatePair));
-            pairs1      = state->pairs + index1;
-        }
-        state->used += i;
+        state = state_extend(state, left);
+        state->used += left;
+        pairs1 = state->pairs + index1;
 
         /* TODO: Use memcpy if pairs1 and pairs2 are of same size */
-        for (int j=0; j<i; j++)
+        for (int j=0; j<left; j++)
         {
             pairs1->key = pairs2->key;
             pairs1->val = pairs2->val;
@@ -217,7 +225,7 @@ Datum ${store_lower}_agg_finalfn_pairs(PG_FUNCTION_ARGS)
 {
     ISAggState  *state;
     ${store}       *istore;
-    IStorePair *istore_pairs;
+    ${store}Pair *istore_pairs;
 
     if (PG_ARGISNULL(0)) PG_RETURN_NULL();
 
@@ -226,7 +234,7 @@ Datum ${store_lower}_agg_finalfn_pairs(PG_FUNCTION_ARGS)
     istore->len = state->used;
 
     /* TODO: Probably use memcpy if pairs are of same size */
-    istore_pairs = FIRST_PAIR(istore, IStorePair);
+    istore_pairs = FIRST_PAIR(istore, ${store}Pair);
     for (int i = 0; i < istore->len; ++i)
     {
         istore_pairs[i].key = state->pairs[i].key;
@@ -297,9 +305,231 @@ Datum ${store_lower}_avl_finalfn(PG_FUNCTION_ARGS)
     PG_RETURN_POINTER(istore);
 }
 
+/* parallel support functions */
+
+
 #undef Key
 #undef Val
 
 
 %}
+
+// create a agg state copy in the right memory context
+static inline ISAggState *
+is_agg_state_copy(ISAggState *state, MemoryContext context)
+{
+    ISAggState *res;
+
+    res = (ISAggState *) MemoryContextAllocZero(context, sizeof(ISAggState) + state->size * sizeof(StatePair));
+    res->size = state->size;
+    res->used = state->used;
+
+    memcpy(res->pairs, state->pairs, state->size * sizeof(StatePair));
+    return res;
+}
+
+static inline ISAggState *
+istore_agg_state_accum(ISAggState *state1, ISAggState *state2, ISAggType type)
+{
+    StatePair   *pairs1, *pairs2;
+    int          index1 = 0, index2 = 0;
+    int          left;
+
+    pairs1 = state1->pairs;
+    pairs2 = state2->pairs;
+    while (index1 < state1->used && index2 < state2->used)
+    {
+        if (pairs1->key < pairs2->key)
+        {
+            // do nothing keep state
+            ++pairs1;
+            ++index1;
+        }
+        else if (pairs1->key > pairs2->key)
+        {
+            int i = 1;
+            while (index2 + i < state2->used && pairs1->key > pairs2[i].key)
+            {
+                ++i;
+            }
+
+            // expand state capacity to store new items
+            state1  = state_extend(state1, i);
+            pairs1 = state1->pairs + index1;
+
+            // move data i steps forward from index1
+            memmove(pairs1 + i, pairs1, (state1->used - index1) * sizeof(StatePair));
+
+            // copy data
+            state1->used += i;
+            memcpy(pairs1, pairs2, i * sizeof(StatePair));
+            pairs1 += i;
+            pairs2 += i;
+            index1 += i;
+            index2 += i;
+        }
+        else
+        {
+            // identical keys - apply logic according to aggregation type
+            switch (type)
+            {
+                case AGG_SUM:
+                    /*
+                     * Overflow check.  If the inputs are of different signs then their sum
+                     * cannot overflow.  If the inputs are of the same sign, their sum had
+                     * better be that sign too.
+                     */
+                    if (SAMESIGN(pairs1->val, pairs2->val))
+                    {
+                        pairs1->val += pairs2->val;
+                        if (!SAMESIGN(pairs1->val, pairs2->val))
+                            ereport(ERROR,
+                                    (errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE), errmsg("bigint out of range")));
+                    }
+                    else
+                    {
+                        pairs1->val += pairs2->val;
+                    }
+                    break;
+                case AGG_MIN: pairs1->val = MIN(pairs2->val, pairs1->val); break;
+                case AGG_MAX: pairs1->val = MAX(pairs2->val, pairs1->val);
+            }
+
+            ++index1;
+            ++index2;
+            ++pairs1;
+            ++pairs2;
+        }
+    }
+
+    // append any leftovers
+    left = state2->used - index2;
+    if (left > 0)
+    {
+        state1 = state_extend(state1, left);
+        state1->used += left;
+        pairs1 = state1->pairs + index1;
+        memcpy(pairs1, pairs2, left * sizeof(StatePair));
+    }
+
+    return state1;
+}
+
+static inline ISAggState *
+istore_agg_combine(PG_FUNCTION_ARGS, ISAggType type)
+{
+    ISAggState   *state1, *state2;
+    MemoryContext agg_context;
+
+    if (!AggCheckCallContext(fcinfo, &agg_context))
+        elog(ERROR, "aggregate function called in non-aggregate context");
+
+    state1 = PG_ARGISNULL(0) ? NULL : (ISAggState *) PG_GETARG_POINTER(0);
+    state2 = PG_ARGISNULL(1) ? NULL : (ISAggState *) PG_GETARG_POINTER(1);
+
+    if (state1 == NULL && state2 == NULL)
+        return NULL;
+
+    if (state2 == NULL)
+        return state1;
+
+    if (state1 == NULL)
+    {
+        state1 = is_agg_state_copy(state2, agg_context);
+
+        return state1;
+    }
+
+    state1 = istore_agg_state_accum(state1, state2, type);
+    return state1;
+}
+
+PG_FUNCTION_INFO_V1(istore_agg_sum_combine);
+Datum istore_agg_sum_combine(PG_FUNCTION_ARGS)
+{
+    ISAggState *res;
+
+    res = istore_agg_combine(fcinfo, AGG_SUM);
+
+    if (res == NULL)
+        PG_RETURN_NULL();
+
+    PG_RETURN_POINTER(res);
+}
+
+PG_FUNCTION_INFO_V1(istore_agg_min_combine);
+Datum istore_agg_min_combine(PG_FUNCTION_ARGS)
+{
+    ISAggState *res;
+
+    res = istore_agg_combine(fcinfo, AGG_MIN);
+
+    if (res == NULL)
+        PG_RETURN_NULL();
+
+    PG_RETURN_POINTER(res);
+}
+
+PG_FUNCTION_INFO_V1(istore_agg_max_combine);
+Datum istore_agg_max_combine(PG_FUNCTION_ARGS)
+{
+    ISAggState *res;
+
+    res = istore_agg_combine(fcinfo, AGG_MAX);
+
+    if (res == NULL)
+        PG_RETURN_NULL();
+
+    PG_RETURN_POINTER(res);
+}
+
+/*
+ * Serialize the internal aggregation state ISAggState into bytea.
+ */
+PG_FUNCTION_INFO_V1(istore_agg_serial);
+Datum istore_agg_serial(PG_FUNCTION_ARGS)
+{
+
+    ISAggState    *state;
+    StringInfoData buf;
+
+    if (!AggCheckCallContext(fcinfo, NULL))
+        elog(ERROR, "aggregate serialization function called in non-aggregate context");
+
+    state = (ISAggState *) PG_GETARG_POINTER(0);
+
+    pq_begintypsend(&buf);
+    pq_sendint(&buf, state->used, sizeof(int32));
+    pq_sendbytes(&buf, (char *) state->pairs, state->used * sizeof(StatePair));
+
+    PG_RETURN_BYTEA_P(pq_endtypsend(&buf));
+}
+
+/*
+ * Deserialize bytea into the internal aggregation state ISAggState.
+ */
+PG_FUNCTION_INFO_V1(istore_agg_deserial);
+Datum istore_agg_deserial(PG_FUNCTION_ARGS)
+{
+    bytea         *sstate;
+    ISAggState    *state;
+    int            used;
+    StringInfoData buf;
+
+    if (!AggCheckCallContext(fcinfo, NULL))
+        elog(ERROR, "aggregate deserialization function called in non-aggregate context");
+
+    sstate = PG_GETARG_BYTEA_PP(0);
+    initStringInfo(&buf);
+    appendBinaryStringInfo(&buf, VARDATA_ANY(sstate), VARSIZE_ANY_EXHDR(sstate));
+
+    used = pq_getmsgint(&buf, sizeof(int32));
+
+    state       = (ISAggState *) palloc0(sizeof(ISAggState) + used * sizeof(StatePair));
+    state->size = used;
+    state->used = used;
+    pq_copymsgbytes(&buf, (char *) state->pairs, used * sizeof(StatePair));
+
+    PG_RETURN_POINTER(state);
+}
 

@@ -365,77 +365,6 @@ SELECT divide('-1=>-1, 2=>1'::bigistore, '2=>0');
 ERROR:  division by zero
 ROLLBACK;
 BEGIN;
--- bigistore functions should generate #{type} from array;
--- ./spec/istore/functions_plain_spec.rb:145;
-CREATE EXTENSION istore;
-SELECT bigistore(ARRAY[1]);
- bigistore 
------------
- "1"=>"1"
-(1 row)
-
-SELECT bigistore(ARRAY[1,1,1,1]);
- bigistore 
------------
- "1"=>"4"
-(1 row)
-
-SELECT bigistore(NULL);
- bigistore 
------------
- 
-(1 row)
-
-SELECT bigistore(ARRAY[1,2,3,4]);
-               bigistore                
-----------------------------------------
- "1"=>"1", "2"=>"1", "3"=>"1", "4"=>"1"
-(1 row)
-
-SELECT bigistore(ARRAY[1,2,3,4,1,2,3,4]);
-               bigistore                
-----------------------------------------
- "1"=>"2", "2"=>"2", "3"=>"2", "4"=>"2"
-(1 row)
-
-SELECT bigistore(ARRAY[1,2,3,4,1,2,3,NULL]);
-               bigistore                
-----------------------------------------
- "1"=>"2", "2"=>"2", "3"=>"2", "4"=>"1"
-(1 row)
-
-SELECT bigistore(ARRAY[NULL,2,3,4,1,2,3,4]);
-               bigistore                
-----------------------------------------
- "1"=>"1", "2"=>"2", "3"=>"2", "4"=>"2"
-(1 row)
-
-SELECT bigistore(ARRAY[NULL,2,3,4,1,2,3,NULL]);
-               bigistore                
-----------------------------------------
- "1"=>"1", "2"=>"2", "3"=>"2", "4"=>"1"
-(1 row)
-
-SELECT bigistore(ARRAY[1,2,3,NULL,1,NULL,3,4,1,2,3]);
-               bigistore                
-----------------------------------------
- "1"=>"3", "2"=>"2", "3"=>"3", "4"=>"1"
-(1 row)
-
-SELECT bigistore(ARRAY[NULL,NULL,NULL,NULL]::integer[]);
- bigistore 
------------
- 
-(1 row)
-
-SELECT bigistore(ARRAY[]::integer[]);
- bigistore 
------------
- 
-(1 row)
-
-ROLLBACK;
-BEGIN;
 -- bigistore functions should sum up istores;
 -- ./spec/istore/functions_plain_spec.rb:167;
 CREATE EXTENSION istore;
@@ -726,31 +655,31 @@ BEGIN;
 -- bigistore functions should seed an #{type} from integer;
 -- ./spec/istore/functions_plain_spec.rb:278;
 CREATE EXTENSION istore;
-SELECT istore_seed(2,5,8::bigint);
-              istore_seed               
+SELECT bigistore_seed(2,5,8::bigint);
+             bigistore_seed             
 ----------------------------------------
  "2"=>"8", "3"=>"8", "4"=>"8", "5"=>"8"
 (1 row)
 
-SELECT istore_seed(2,5,NULL::bigint);
- istore_seed 
--------------
+SELECT bigistore_seed(2,5,NULL::bigint);
+ bigistore_seed 
+----------------
  
 (1 row)
 
-SELECT istore_seed(2,5,0::bigint);
-              istore_seed               
+SELECT bigistore_seed(2,5,0::bigint);
+             bigistore_seed             
 ----------------------------------------
  "2"=>"0", "3"=>"0", "4"=>"0", "5"=>"0"
 (1 row)
 
-SELECT istore_seed(2,2,8::bigint);
- istore_seed 
--------------
+SELECT bigistore_seed(2,2,8::bigint);
+ bigistore_seed 
+----------------
  "2"=>"8"
 (1 row)
 
-SELECT istore_seed(2,0,8::bigint);
+SELECT bigistore_seed(2,0,8::bigint);
 ERROR:  parameter upto must be >= from
 ROLLBACK;
 BEGIN;
@@ -764,8 +693,8 @@ BEGIN;
 -- bigistore functions should merge istores by larger keys;
 -- ./spec/istore/functions_plain_spec.rb:293;
 CREATE EXTENSION istore;
-SELECT istore_val_larger('1=>1,2=>1,3=>3'::bigistore, '1=>2,3=>1,4=>1');
-           istore_val_larger            
+SELECT bigistore_val_larger('1=>1,2=>1,3=>3'::bigistore, '1=>2,3=>1,4=>1');
+          bigistore_val_larger          
 ----------------------------------------
  "1"=>"2", "2"=>"1", "3"=>"3", "4"=>"1"
 (1 row)
@@ -775,8 +704,8 @@ BEGIN;
 -- bigistore functions should merge istores by smaller keys;
 -- ./spec/istore/functions_plain_spec.rb:298;
 CREATE EXTENSION istore;
-SELECT istore_val_smaller('1=>1,2=>1,3=>3'::bigistore, '1=>2,3=>1,4=>1');
-           istore_val_smaller           
+SELECT bigistore_val_smaller('1=>1,2=>1,3=>3'::bigistore, '1=>2,3=>1,4=>1');
+         bigistore_val_smaller          
 ----------------------------------------
  "1"=>"1", "2"=>"1", "3"=>"1", "4"=>"1"
 (1 row)
@@ -933,10 +862,10 @@ BEGIN;
 -- bigistore functions should return length of empty istores;
 -- ./spec/istore/functions_plain_spec.rb:358;
 CREATE EXTENSION istore;
-SELECT istore_length(bigistore(ARRAY[]::integer[],ARRAY[]::integer[]));
- istore_length 
----------------
-             0
+SELECT bigistore_length(bigistore(ARRAY[]::integer[],ARRAY[]::integer[]));
+ bigistore_length 
+------------------
+                0
 (1 row)
 
 ROLLBACK;
@@ -944,22 +873,22 @@ BEGIN;
 -- bigistore functions should return length of non-empty istores;
 -- ./spec/istore/functions_plain_spec.rb:362;
 CREATE EXTENSION istore;
-SELECT istore_length(bigistore(ARRAY[1],ARRAY[1]));
- istore_length 
----------------
-             1
+SELECT bigistore_length(bigistore(ARRAY[1],ARRAY[1]));
+ bigistore_length 
+------------------
+                1
 (1 row)
 
-SELECT istore_length(bigistore(ARRAY[1,2,3],ARRAY[1,2,3]));
- istore_length 
----------------
-             3
+SELECT bigistore_length(bigistore(ARRAY[1,2,3],ARRAY[1,2,3]));
+ bigistore_length 
+------------------
+                3
 (1 row)
 
-SELECT istore_length('-2147483647 => 10, -10 => -9223372036854775807, 0 => 5, 10 => 9223372036854775806, 2147483647 => 10'::bigistore);
- istore_length 
----------------
-             5
+SELECT bigistore_length('-2147483647 => 10, -10 => -9223372036854775807, 0 => 5, 10 => 9223372036854775806, 2147483647 => 10'::bigistore);
+ bigistore_length 
+------------------
+                5
 (1 row)
 
 ROLLBACK;
@@ -967,56 +896,16 @@ BEGIN;
 -- bigistore functions should convert istore to json;
 -- ./spec/istore/functions_plain_spec.rb:368;
 CREATE EXTENSION istore;
-SELECT istore_to_json('5=>50, 7=>70, 9=>90'::bigistore);
-       istore_to_json        
+SELECT bigistore_to_json('5=>50, 7=>70, 9=>90'::bigistore);
+      bigistore_to_json      
 -----------------------------
  {"5": 50, "7": 70, "9": 90}
 (1 row)
 
-SELECT istore_to_json('-2147483647 => 10, -10 => -9223372036854775807, 0 => 5, 10 => 9223372036854775806, 2147483647 => 10'::bigistore);
-                                            istore_to_json                                             
+SELECT bigistore_to_json('-2147483647 => 10, -10 => -9223372036854775807, 0 => 5, 10 => 9223372036854775806, 2147483647 => 10'::bigistore);
+                                           bigistore_to_json                                           
 -------------------------------------------------------------------------------------------------------
  {"-2147483647": 10, "-10": -9223372036854775807, "0": 5, "10": 9223372036854775806, "2147483647": 10}
-(1 row)
-
-ROLLBACK;
-BEGIN;
--- bigistore functions should convert istore to array;
--- ./spec/istore/functions_plain_spec.rb:375;
-CREATE EXTENSION istore;
-SELECT istore_to_array('5=>50, 7=>70, 9=>90'::bigistore);
- istore_to_array  
-------------------
- {5,50,7,70,9,90}
-(1 row)
-
-SELECT istore_to_array('-2147483647 => 10, -10 => -9223372036854775807, 0 => 5, 10 => 9223372036854775806, 2147483647 => 10'::bigistore);
-                                  istore_to_array                                   
-------------------------------------------------------------------------------------
- {-2147483647,10,-10,-9223372036854775807,0,5,10,9223372036854775806,2147483647,10}
-(1 row)
-
-SELECT istore_to_array(''::bigistore);
- istore_to_array 
------------------
- {}
-(1 row)
-
-ROLLBACK;
-BEGIN;
--- bigistore functions should convert istore to matrix;
--- ./spec/istore/functions_plain_spec.rb:384;
-CREATE EXTENSION istore;
-SELECT istore_to_matrix('5=>50, 7=>70, 9=>90'::bigistore);
-    istore_to_matrix    
-------------------------
- {{5,50},{7,70},{9,90}}
-(1 row)
-
-SELECT istore_to_matrix('-2147483647 => 10, -10 => -9223372036854775807, 0 => 5, 10 => 9223372036854775806, 2147483647 => 10'::bigistore);
-                                       istore_to_matrix                                       
-----------------------------------------------------------------------------------------------
- {{-2147483647,10},{-10,-9223372036854775807},{0,5},{10,9223372036854775806},{2147483647,10}}
 (1 row)
 
 ROLLBACK;
@@ -1759,77 +1648,6 @@ SELECT divide('-1=>-1, 2=>1'::istore, '2=>0');
 ERROR:  division by zero
 ROLLBACK;
 BEGIN;
--- istore functions should generate #{type} from array;
--- ./spec/istore/functions_plain_spec.rb:145;
-CREATE EXTENSION istore;
-SELECT istore(ARRAY[1]);
-  istore  
-----------
- "1"=>"1"
-(1 row)
-
-SELECT istore(ARRAY[1,1,1,1]);
-  istore  
-----------
- "1"=>"4"
-(1 row)
-
-SELECT istore(NULL);
- istore 
---------
- 
-(1 row)
-
-SELECT istore(ARRAY[1,2,3,4]);
-                 istore                 
-----------------------------------------
- "1"=>"1", "2"=>"1", "3"=>"1", "4"=>"1"
-(1 row)
-
-SELECT istore(ARRAY[1,2,3,4,1,2,3,4]);
-                 istore                 
-----------------------------------------
- "1"=>"2", "2"=>"2", "3"=>"2", "4"=>"2"
-(1 row)
-
-SELECT istore(ARRAY[1,2,3,4,1,2,3,NULL]);
-                 istore                 
-----------------------------------------
- "1"=>"2", "2"=>"2", "3"=>"2", "4"=>"1"
-(1 row)
-
-SELECT istore(ARRAY[NULL,2,3,4,1,2,3,4]);
-                 istore                 
-----------------------------------------
- "1"=>"1", "2"=>"2", "3"=>"2", "4"=>"2"
-(1 row)
-
-SELECT istore(ARRAY[NULL,2,3,4,1,2,3,NULL]);
-                 istore                 
-----------------------------------------
- "1"=>"1", "2"=>"2", "3"=>"2", "4"=>"1"
-(1 row)
-
-SELECT istore(ARRAY[1,2,3,NULL,1,NULL,3,4,1,2,3]);
-                 istore                 
-----------------------------------------
- "1"=>"3", "2"=>"2", "3"=>"3", "4"=>"1"
-(1 row)
-
-SELECT istore(ARRAY[NULL,NULL,NULL,NULL]::integer[]);
- istore 
---------
- 
-(1 row)
-
-SELECT istore(ARRAY[]::integer[]);
- istore 
---------
- 
-(1 row)
-
-ROLLBACK;
-BEGIN;
 -- istore functions should sum up istores;
 -- ./spec/istore/functions_plain_spec.rb:167;
 CREATE EXTENSION istore;
@@ -2365,46 +2183,6 @@ SELECT istore_to_json('-2147483647 => 10, -10 => -2147483647, 0 => 5, 10 => 2147
                                    istore_to_json                                    
 -------------------------------------------------------------------------------------
  {"-2147483647": 10, "-10": -2147483647, "0": 5, "10": 2147483647, "2147483647": 10}
-(1 row)
-
-ROLLBACK;
-BEGIN;
--- istore functions should convert istore to array;
--- ./spec/istore/functions_plain_spec.rb:375;
-CREATE EXTENSION istore;
-SELECT istore_to_array('5=>50, 7=>70, 9=>90'::istore);
- istore_to_array  
-------------------
- {5,50,7,70,9,90}
-(1 row)
-
-SELECT istore_to_array('-2147483647 => 10, -10 => -2147483647, 0 => 5, 10 => 2147483647, 2147483647 => 10'::istore);
-                         istore_to_array                          
-------------------------------------------------------------------
- {-2147483647,10,-10,-2147483647,0,5,10,2147483647,2147483647,10}
-(1 row)
-
-SELECT istore_to_array(''::istore);
- istore_to_array 
------------------
- {}
-(1 row)
-
-ROLLBACK;
-BEGIN;
--- istore functions should convert istore to matrix;
--- ./spec/istore/functions_plain_spec.rb:384;
-CREATE EXTENSION istore;
-SELECT istore_to_matrix('5=>50, 7=>70, 9=>90'::istore);
-    istore_to_matrix    
-------------------------
- {{5,50},{7,70},{9,90}}
-(1 row)
-
-SELECT istore_to_matrix('-2147483647 => 10, -10 => -2147483647, 0 => 5, 10 => 2147483647, 2147483647 => 10'::istore);
-                              istore_to_matrix                              
-----------------------------------------------------------------------------
- {{-2147483647,10},{-10,-2147483647},{0,5},{10,2147483647},{2147483647,10}}
 (1 row)
 
 ROLLBACK;

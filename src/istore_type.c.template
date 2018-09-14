@@ -17,9 +17,6 @@
 #define StorePairs ${store}Pairs
 #define Key int${keybits}
 #define Val int${valbits}
-/* TODO: KEYOID should be different for non-integer keys */
-#define KEYOID INT${keysize}OID
-#define VALUEOID INT${valsize}OID
 #define KeyGetDatum Int${keybits}GetDatum
 #define ValueGetDatum Int${valbits}GetDatum
 
@@ -525,13 +522,18 @@ ${store_lower}_add_from_int_arrays(ArrayType *input1, ArrayType *input2)
         if (nulls1[i] || nulls2[i])
             continue;
 
-        switch (i_eltype1)
+        /*switch (i_eltype1)
         {
             case INT2OID: key = DatumGetInt16(i_data1[i]); break;
             case INT4OID: key = DatumGetInt32(i_data1[i]); break;
-            case INT8OID: key = DatumGetInt64(i_data2[i]); break;
+            case INT8OID: key = DatumGetInt64(i_data1[i]); break;
             default: elog(ERROR, "unsupported array type");
-        }
+        }*/
+        if (i_eltype1 == ${keyoid})
+            key = DatumGetInt${keybits}(i_data1[i]);
+        else
+            elog(ERROR, "unsupported array type");
+
         switch (i_eltype2)
         {
             case INT2OID: value = DatumGetInt16(i_data2[i]); break;
@@ -664,13 +666,15 @@ STORE_FUNCTION(fill_gaps)
 
     StorePairs *creator = NULL;
 
-    int up_to, fill_with, index1 = 0, index2 = 0;
+    int index1 = 0, index2 = 0;
+    Key up_to;
+    Val fill_with;
 
     if (PG_ARGISNULL(0))
         PG_RETURN_NULL();
 
     is    = PG_GETARG_STORE(0);
-    up_to = PG_GETARG_INT32(1);
+    up_to = PG_GETARG_KEY(1);
 
     fill_with = PG_GETARG_VALUE(2);
     pairs     = FIRST_PAIR(is, StorePair);
@@ -823,7 +827,7 @@ STORE_FUNCTION(akeys)
 
     if (is->len == 0)
     {
-        a = construct_empty_array(KEYOID);
+        a = construct_empty_array(${keyoid});
         PG_RETURN_POINTER(a);
     }
 
@@ -836,7 +840,7 @@ STORE_FUNCTION(akeys)
         ++index;
     }
 
-    a = construct_array(d, is->len, KEYOID, sizeof(Key), true, 'i');
+    a = construct_array(d, is->len, ${keyoid}, sizeof(Key), true, 'i');
     PG_RETURN_POINTER(a);
 }
 
@@ -856,7 +860,7 @@ STORE_FUNCTION(avals)
 
     if (is->len == 0)
     {
-        a = construct_empty_array(VALUEOID);
+        a = construct_empty_array(INT${valsize}OID);
         PG_RETURN_POINTER(a);
     }
 
@@ -872,7 +876,7 @@ STORE_FUNCTION(avals)
     /* TODO: Use FLOAT8PASSBYVAL depending on value size */
     a = construct_array(d,
                         is->len,
-                        VALUEOID,
+                        INT${valsize}OID,
                         sizeof(Val),
                         FLOAT8PASSBYVAL,
 #if keysize <= 4
@@ -1244,8 +1248,6 @@ STORE_FUNCTION(exists_all)
 #undef StorePairs
 #undef Key
 #undef Val
-#undef KEYOID
-#undef VALUEOID
 #undef KeyGetDatum
 #undef ValueGetDatum
 #undef STORE_FUNCTION

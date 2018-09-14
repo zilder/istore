@@ -10,6 +10,16 @@
 #include "utils/builtins.h"
 #include "utils/memutils.h"
 
+/*
+ * creates the internal representation from a pairs collection
+ */
+#define FINALIZE_ISTORE_BASE(_istore, _pairs, _pairtype) \
+        _istore         = palloc0(ISHDRSZ + PAYLOAD_SIZE(_pairs, _pairtype));\
+        _istore->buflen = _pairs->buflen;\
+        _istore->len    = _pairs->used;\
+        SET_VARSIZE(_istore, ISHDRSZ + PAYLOAD_SIZE(_pairs, _pairtype));\
+        memcpy(FIRST_PAIR(_istore, _pairtype), _pairs->pairs, PAYLOAD_SIZE(_pairs, _pairtype));
+
 {%
 
 
@@ -52,10 +62,24 @@ void ${store_lower}_pairs_insert(${store}Pairs *pairs, ${keytype} key, ${valtype
 int ${store_lower}_pairs_cmp(const void *a, const void *b);
 void ${store_lower}_tree_to_pairs(AvlNode *p, ${store}Pairs *pairs);
 
+/*
+ * get the ${store}
+ */
+#define PG_GETARG_${store_upper}(x) (${store} *) PG_DETOAST_DATUM(PG_GETARG_DATUM(x))
+#define PG_GETARG_${store_upper}_COPY(x) (${store} *) PG_DETOAST_DATUM_COPY(PG_GETARG_DATUM(x))
+
+#define FINALIZE_${store_upper}(_istore, _pairs) \
+    do \
+    { \
+        FINALIZE_ISTORE_BASE(_istore, _pairs, ${store}Pair); \
+        pfree(_pairs->pairs); \
+    } while (0)
+
+
 %}
 
-void           istore_copy_and_add_buflen(IStore *istore, BigIStorePair *pairs);
-void           bigistore_add_buflen(BigIStore *istore);
+//void           istore_copy_and_add_buflen(IStore *istore, BigIStorePair *pairs);
+//void           bigistore_add_buflen(BigIStore *istore);
 
 int is_int32_arr_comp(const void *a, const void *b);
 int is_int64_arr_comp(const void *a, const void *b);
@@ -76,28 +100,7 @@ int is_int64_arr_comp(const void *a, const void *b);
 #define FIRST_PAIR(x, _pairtype) ((_pairtype *) ((char *) x + ISHDRSZ))
 #define LAST_PAIR(x, _pairtype)  ((_pairtype *) ((char *) x + ISHDRSZ + (x->len-1) * sizeof(_pairtype)))
 
-/*
- * get the istore
- */
-
-#define PG_GETARG_ISTORE(x) (IStore *) PG_DETOAST_DATUM(PG_GETARG_DATUM(x))
-#define PG_GETARG_ISTORE_COPY(x) (IStore *) PG_DETOAST_DATUM_COPY(PG_GETARG_DATUM(x))
-#define PG_GETARG_BIGISTORE(x) (BigIStore *) PG_DETOAST_DATUM(PG_GETARG_DATUM(x))
-#define PG_GETARG_BIGISTORE_COPY(x) (BigIStore *) PG_DETOAST_DATUM_COPY(PG_GETARG_DATUM(x))
-#define PG_GETARG_DATEISTORE(x) (DateIStore *) PG_DETOAST_DATUM(PG_GETARG_DATUM(x))
-#define PG_GETARG_DATEISTORE_COPY(x) (DateIStore *) PG_DETOAST_DATUM_COPY(PG_GETARG_DATUM(x))
-
-/*
- * creates the internal representation from a pairs collection
- */
-
-#define FINALIZE_ISTORE_BASE(_istore, _pairs, _pairtype) \
-        _istore         = palloc0(ISHDRSZ + PAYLOAD_SIZE(_pairs, _pairtype));\
-        _istore->buflen = _pairs->buflen;\
-        _istore->len    = _pairs->used;\
-        SET_VARSIZE(_istore, ISHDRSZ + PAYLOAD_SIZE(_pairs, _pairtype));\
-        memcpy(FIRST_PAIR(_istore, _pairtype), _pairs->pairs, PAYLOAD_SIZE(_pairs, _pairtype));
-
+#if 0
 #define FINALIZE_ISTORE(_istore, _pairs)                   \
     do                                                     \
     {                                                      \
@@ -118,6 +121,7 @@ int is_int64_arr_comp(const void *a, const void *b);
         FINALIZE_ISTORE_BASE(_istore, _pairs, DateIStorePair); \
         pfree(_pairs->pairs);                                 \
     } while (0)
+#endif
 
 #define SAMESIGN(a,b)   (((a) < 0) == ((b) < 0))
 #define INTPL(_a, _b, _r)                                                                                              \
@@ -128,6 +132,7 @@ int is_int64_arr_comp(const void *a, const void *b);
             ereport(ERROR, (errcode(ERRCODE_NUMERIC_VALUE_OUT_OF_RANGE), errmsg("integer out of range")));             \
     } while (0)
 
+#if 0
 /*
  * return the number of digits
  */
@@ -281,5 +286,6 @@ digits64(int64 num)
         }
     }
 }
+#endif
 
 #endif // ISTORE_H

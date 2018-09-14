@@ -9,33 +9,33 @@
 
 
 /*
- * ${store_type} type and IO functions
+ * ${store} type and IO functions
  */
-CREATE FUNCTION ${store_type}_in(cstring)
-    RETURNS ${store_type}
-    AS 'istore'
+CREATE FUNCTION ${store}_in(cstring)
+    RETURNS ${store}
+    AS '${extname}'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION ${store_type}_out(${store_type})
+CREATE FUNCTION ${store}_out(${store})
     RETURNS cstring
-    AS 'istore'
+    AS '${extname}'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION ${store_type}_send(${store_type})
+CREATE FUNCTION ${store}_send(${store})
     RETURNS bytea
-    AS 'istore'
+    AS '${extname}'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION ${store_type}_recv(internal)
-    RETURNS ${store_type}
-    AS 'istore'
+CREATE FUNCTION ${store}_recv(internal)
+    RETURNS ${store}
+    AS '${extname}'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE TYPE ${store_type} (
-    INPUT   = ${store_type}_in,
-    OUTPUT  = ${store_type}_out,
-    RECEIVE = ${store_type}_recv,
-    SEND    = ${store_type}_send,
+CREATE TYPE ${store} (
+    INPUT   = ${store}_in,
+    OUTPUT  = ${store}_out,
+    RECEIVE = ${store}_recv,
+    SEND    = ${store}_send,
     STORAGE = EXTENDED
 );
 %}

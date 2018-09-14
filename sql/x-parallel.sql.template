@@ -1,0 +1,125 @@
+DO $$
+DECLARE version_num integer;
+BEGIN
+  SELECT current_setting('server_version_num') INTO STRICT version_num;
+  IF version_num > 90600 THEN
+    EXECUTE 'CREATE FUNCTION istore_agg_sum_combine(internal, internal)
+        RETURNS internal
+        AS ''${extname}''
+        LANGUAGE C IMMUTABLE PARALLEL SAFE';
+
+    EXECUTE 'CREATE FUNCTION istore_agg_max_combine(internal, internal)
+        RETURNS internal
+        AS ''${extname}''
+        LANGUAGE C IMMUTABLE PARALLEL SAFE';
+
+    EXECUTE 'CREATE FUNCTION istore_agg_min_combine(internal, internal)
+        RETURNS internal
+        AS ''${extname}''
+        LANGUAGE C IMMUTABLE PARALLEL SAFE';
+
+    EXECUTE 'CREATE FUNCTION istore_agg_serial(internal)
+        RETURNS bytea
+        AS ''${extname}''
+        LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE';
+
+    EXECUTE 'CREATE FUNCTION istore_agg_deserial(bytea, internal)
+        RETURNS internal
+        AS ''${extname}''
+        LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE';
+{%
+
+    EXECUTE 'ALTER FUNCTION ${store}_in(cstring) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_out(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_send(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_recv(internal) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION exist(${store}, ${keytype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION fetchval(${store}, ${keytype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION each(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION min_key(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION max_key(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION compact(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION add(${store}, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION add(${store}, ${valtype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION subtract(${store}, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION subtract(${store}, ${valtype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION multiply(${store}, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION multiply(${store}, ${valtype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION divide(${store}, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION divide(${store}, ${valtype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION concat(${store}, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION sum_up(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION sum_up(${store}, ${keytype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}(${keytype}[], ${valtype}[]) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION fill_gaps(${store}, ${keytype}, ${valtype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION accumulate(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION accumulate(${store}, ${keytype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_seed(${keytype}, ${keytype}, ${valtype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_val_larger(${store}, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_val_smaller(${store}, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION akeys(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION avals(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION skeys(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION svals(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION istore_sum_transfn(internal, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION istore_min_transfn(internal, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION istore_max_transfn(internal, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_agg_finalfn_pairs(internal) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_to_json(${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION slice(${store}, ${keytype}[]) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION slice_array(${store}, ${keytype}[]) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION clamp_below(${store}, ${keytype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION clamp_above(${store}, ${keytype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION delete(${store}, ${keytype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION delete(${store}, ${keytype}[]) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION exists_all(${store}, ${keytype}[]) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION exists_any(${store}, ${keytype}[]) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION delete(${store}, ${store}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_avl_transfn(internal, ${keytype}, ${valtype}) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_avl_finalfn(internal) PARALLEL SAFE';
+    EXECUTE 'ALTER FUNCTION ${store}_length(${store}) PARALLEL SAFE';
+
+    -- EXECUTE 'ALTER FUNCTION gin_extract_${store}_key(internal, internal) PARALLEL SAFE';
+    -- EXECUTE 'ALTER FUNCTION gin_extract_${store}_key_query(internal, internal, int2, internal, internal) PARALLEL SAFE';
+    -- EXECUTE 'ALTER FUNCTION gin_consistent_${store}_key(internal, int2, internal, int4, internal, internal) PARALLEL SAFE';
+
+    EXECUTE 'DROP AGGREGATE SUM (${store})';
+    EXECUTE 'DROP AGGREGATE MIN (${store})';
+    EXECUTE 'DROP AGGREGATE MAX (${store})';
+
+    EXECUTE 'CREATE AGGREGATE SUM (${store}) (
+        sfunc = istore_sum_transfn,
+        stype = internal,
+        finalfunc = ${store}_agg_finalfn_pairs,
+        combinefunc = istore_agg_sum_combine,
+        serialfunc = istore_agg_serial,
+        deserialfunc = istore_agg_deserial,
+        parallel = SAFE
+    )';
+
+    EXECUTE 'CREATE AGGREGATE MIN (${store}) (
+        sfunc = istore_min_transfn,
+        stype = internal,
+        finalfunc = ${store}_agg_finalfn_pairs,
+        combinefunc = istore_agg_min_combine,
+        serialfunc = istore_agg_serial,
+        deserialfunc = istore_agg_deserial,
+        parallel = SAFE
+    )';
+
+    EXECUTE 'CREATE AGGREGATE MAX (${store}) (
+        sfunc = istore_max_transfn,
+        stype = internal,
+        finalfunc = ${store}_agg_finalfn_pairs,
+        combinefunc = istore_agg_max_combine,
+        serialfunc = istore_agg_serial,
+        deserialfunc = istore_agg_deserial,
+        parallel = SAFE
+    )';
+
+
+%}
+  END IF;
+END;
+$$;
+

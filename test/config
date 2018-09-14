@@ -1,0 +1,21 @@
+extname=istore
+
+declare -A istore=(
+    [name]=IStore
+    [keysize]=4
+    [valsize]=4
+    [sql_key_type]=int4
+    [key_oid]=INT4OID
+    [key_in_f]=int4in
+    [key_out_f]=int4out)
+
+declare -A bigistore=(
+    [name]=BigIStore
+    [keysize]=4
+    [valsize]=8
+    [sql_key_type]=int4
+    [key_oid]=INT4OID
+    [key_in_f]=int4in
+    [key_out_f]=int4out)
+
+declare -a types=( istore bigistore )

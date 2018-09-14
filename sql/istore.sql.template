@@ -1,405 +1,383 @@
-/* Finalization function common for all types of the IStore family */
-CREATE FUNCTION bigistore_agg_finalfn_pairs(internal)
-RETURNS istore
-AS 'istore', 'istore_agg_finalfn_pairs'
+CREATE FUNCTION gin_extract_istore_key_query(internal, internal, int2, internal, internal)
+RETURNS internal
+AS '${extname}'
+LANGUAGE C IMMUTABLE STRICT;
+
+CREATE FUNCTION gin_consistent_istore_key(internal, int2, internal, int4, internal, internal)
+RETURNS bool
+AS '${extname}'
 LANGUAGE C IMMUTABLE STRICT;
 
 {%
 
 
 /*
- * ${store_type} functions
+ * ${store} functions
  */
-CREATE FUNCTION exist(${store_type}, ${keytype})
+CREATE FUNCTION exist(${store}, ${keytype})
     RETURNS boolean
-    AS 'istore', '${store_type}_exist'
+    AS '${extname}', '${store}_exist'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION fetchval(${store_type}, ${keytype})
+CREATE FUNCTION fetchval(${store}, ${keytype})
     RETURNS ${valtype}
-    AS 'istore', '${store_type}_fetchval'
+    AS '${extname}', '${store}_fetchval'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION each(IN is ${store_type},
+CREATE FUNCTION each(IN is ${store},
     OUT key ${keytype},
     OUT value ${valtype})
 RETURNS SETOF record
-AS 'istore','${store_type}_each'
+AS '${extname}','${store}_each'
 LANGUAGE C STRICT IMMUTABLE;
 
-CREATE FUNCTION min_key(${store_type})
+CREATE FUNCTION min_key(${store})
     RETURNS ${keytype}
-    AS 'istore', '${store_type}_min_key'
+    AS '${extname}', '${store}_min_key'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION max_key(${store_type})
+CREATE FUNCTION max_key(${store})
     RETURNS ${keytype}
-    AS 'istore', '${store_type}_max_key'
+    AS '${extname}', '${store}_max_key'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION compact(${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_compact'
+CREATE FUNCTION compact(${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_compact'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION add(${store_type}, ${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_add'
+CREATE FUNCTION add(${store}, ${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_add'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION add(${store_type}, ${valtype})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_add_integer'
+CREATE FUNCTION add(${store}, ${valtype})
+    RETURNS ${store}
+    AS '${extname}', '${store}_add_integer'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION subtract(${store_type}, ${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_subtract'
+CREATE FUNCTION subtract(${store}, ${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_subtract'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION subtract(${store_type}, ${valtype})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_subtract_integer'
+CREATE FUNCTION subtract(${store}, ${valtype})
+    RETURNS ${store}
+    AS '${extname}', '${store}_subtract_integer'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION multiply(${store_type}, ${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_multiply'
+CREATE FUNCTION multiply(${store}, ${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_multiply'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION multiply(${store_type}, ${valtype})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_multiply_integer'
+CREATE FUNCTION multiply(${store}, ${valtype})
+    RETURNS ${store}
+    AS '${extname}', '${store}_multiply_integer'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION divide(${store_type}, ${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_divide'
+CREATE FUNCTION divide(${store}, ${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_divide'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION divide(${store_type}, ${valtype})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_divide_integer'
+CREATE FUNCTION divide(${store}, ${valtype})
+    RETURNS ${store}
+    AS '${extname}', '${store}_divide_integer'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION concat(${store_type}, ${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_concat'
+CREATE FUNCTION concat(${store}, ${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_concat'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION sum_up(${store_type})
+CREATE FUNCTION sum_up(${store})
     RETURNS bigint  /* Result type is bigint for both istore and bigistore */
-    AS 'istore', '${store_type}_sum_up'
+    AS '${extname}', '${store}_sum_up'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION sum_up(${store_type}, ${keytype})
+CREATE FUNCTION sum_up(${store}, ${keytype})
     RETURNS bigint
-    AS 'istore', '${store_type}_sum_up'
+    AS '${extname}', '${store}_sum_up'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION fill_gaps(${store_type}, integer, ${valtype} DEFAULT 0)
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_fill_gaps'
+CREATE FUNCTION fill_gaps(${store}, ${keytype}, ${valtype} DEFAULT 0)
+    RETURNS ${store}
+    AS '${extname}', '${store}_fill_gaps'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION accumulate(${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_accumulate'
+CREATE FUNCTION accumulate(${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_accumulate'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION accumulate(${store_type}, ${keytype})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_accumulate'
+CREATE FUNCTION accumulate(${store}, ${keytype})
+    RETURNS ${store}
+    AS '${extname}', '${store}_accumulate'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION istore_seed(${keytype}, ${keytype}, ${valtype})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_seed'
+CREATE FUNCTION ${store}_seed(${keytype}, ${keytype}, ${valtype})
+    RETURNS ${store}
+    AS '${extname}', '${store}_seed'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION istore_val_larger(${store_type}, ${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_val_larger'
+CREATE FUNCTION ${store}_val_larger(${store}, ${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_val_larger'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION istore_val_smaller(${store_type}, ${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_val_smaller'
+CREATE FUNCTION ${store}_val_smaller(${store}, ${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_val_smaller'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION akeys(${store_type})
+CREATE FUNCTION akeys(${store})
     RETURNS ${keytype}[]
-    AS 'istore' ,'${store_type}_akeys'
+    AS '${extname}' ,'${store}_akeys'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION avals(${store_type})
+CREATE FUNCTION avals(${store})
     RETURNS ${valtype}[]
-    AS 'istore' ,'${store_type}_avals'
+    AS '${extname}' ,'${store}_avals'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION skeys(${store_type})
+CREATE FUNCTION skeys(${store})
     RETURNS setof ${keytype}
-    AS 'istore' ,'${store_type}_skeys'
+    AS '${extname}' ,'${store}_skeys'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION svals(${store_type})
+CREATE FUNCTION svals(${store})
     RETURNS setof ${valtype}
-    AS 'istore' ,'${store_type}_svals'
+    AS '${extname}' ,'${store}_svals'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION istore_length(${store_type})
+CREATE FUNCTION ${store}_length(${store})
     RETURNS integer
-    AS 'istore', '${store_type}_length'
+    AS '${extname}', '${store}_length'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION istore_to_json(${store_type})
+CREATE FUNCTION ${store}_to_json(${store})
 RETURNS json
-AS 'istore', '${store_type}_to_json'
+AS '${extname}', '${store}_to_json'
 LANGUAGE C IMMUTABLE STRICT;
 
-/* TODO: what it should look like for non-integer keys? */
-CREATE FUNCTION istore_to_array(${store_type})
-    RETURNS int[]
-    AS 'istore', '${store_type}_to_array'
+CREATE FUNCTION slice(${store}, ${keytype}[])
+    RETURNS ${store}
+    AS '${extname}', '${store}_slice'
     LANGUAGE C IMMUTABLE STRICT;
-
-CREATE FUNCTION istore_to_matrix(${store_type})
-    RETURNS int[]
-    AS 'istore', '${store_type}_to_matrix'
-    LANGUAGE C IMMUTABLE STRICT;
-
-CREATE FUNCTION slice(${store_type}, ${keytype}[])
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_slice'
-    LANGUAGE C IMMUTABLE STRICT;
-CREATE FUNCTION slice_array(${store_type}, ${keytype}[])
+CREATE FUNCTION slice_array(${store}, ${keytype}[])
     RETURNS integer[]
-    AS 'istore', '${store_type}_slice_to_array'
+    AS '${extname}', '${store}_slice_to_array'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION clamp_below(${store_type}, ${keytype})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_clamp_below'
+CREATE FUNCTION clamp_below(${store}, ${keytype})
+    RETURNS ${store}
+    AS '${extname}', '${store}_clamp_below'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION clamp_above(${store_type}, ${keytype})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_clamp_above'
+CREATE FUNCTION clamp_above(${store}, ${keytype})
+    RETURNS ${store}
+    AS '${extname}', '${store}_clamp_above'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION delete(${store_type}, ${keytype})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_delete'
+CREATE FUNCTION delete(${store}, ${keytype})
+    RETURNS ${store}
+    AS '${extname}', '${store}_delete'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION delete(${store_type}, ${keytype}[])
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_delete_array'
+CREATE FUNCTION delete(${store}, ${keytype}[])
+    RETURNS ${store}
+    AS '${extname}', '${store}_delete_array'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION exists_all(${store_type}, ${keytype}[])
+CREATE FUNCTION exists_all(${store}, ${keytype}[])
     RETURNS boolean
-    AS 'istore', '${store_type}_exists_all'
+    AS '${extname}', '${store}_exists_all'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION exists_any(${store_type}, ${keytype}[])
+CREATE FUNCTION exists_any(${store}, ${keytype}[])
     RETURNS boolean
-    AS 'istore', '${store_type}_exists_any'
+    AS '${extname}', '${store}_exists_any'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION delete(${store_type}, ${store_type})
-    RETURNS ${store_type}
-    AS 'istore', '${store_type}_delete_istore'
+CREATE FUNCTION delete(${store}, ${store})
+    RETURNS ${store}
+    AS '${extname}', '${store}_delete_istore'
     LANGUAGE C IMMUTABLE STRICT;
 
-/* ${store_type} aggregates */
-CREATE OR REPLACE FUNCTION ${store_type}_agg_finalfn_pairs(internal)
-    RETURNS istore
-    AS 'istore', 'istore_agg_finalfn_pairs'
+/* ${store} aggregates */
+CREATE OR REPLACE FUNCTION ${store}_agg_finalfn_pairs(internal)
+    RETURNS ${store}
+    AS '${extname}', '${store}_agg_finalfn_pairs'
     LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION istore_sum_transfn(internal, ${store_type})
+CREATE FUNCTION istore_sum_transfn(internal, ${store})
     RETURNS internal
-    AS 'istore' ,'${store_type}_sum_transfn'
+    AS '${extname}' ,'${store}_sum_transfn'
     LANGUAGE C IMMUTABLE;
 
-CREATE FUNCTION istore_min_transfn(internal, ${store_type})
+CREATE FUNCTION istore_min_transfn(internal, ${store})
     RETURNS internal
-    AS 'istore' ,'${store_type}_min_transfn'
+    AS '${extname}' ,'${store}_min_transfn'
     LANGUAGE C IMMUTABLE;
 
-CREATE FUNCTION istore_max_transfn(internal, ${store_type})
+CREATE FUNCTION istore_max_transfn(internal, ${store})
     RETURNS internal
-    AS 'istore' ,'${store_type}_max_transfn'
+    AS '${extname}' ,'${store}_max_transfn'
     LANGUAGE C IMMUTABLE;
 
-CREATE FUNCTION ${store_type}_avl_transfn(internal, ${keytype}, ${valtype})
+CREATE FUNCTION ${store}_avl_transfn(internal, ${keytype}, ${valtype})
     RETURNS internal
-    AS 'istore' ,'${store_type}_avl_transfn'
+    AS '${extname}' ,'${store}_avl_transfn'
     LANGUAGE C IMMUTABLE;
 
-CREATE FUNCTION ${store_type}_avl_finalfn(internal)
-    RETURNS ${store_type}
-    AS 'istore' ,'${store_type}_avl_finalfn'
+CREATE FUNCTION ${store}_avl_finalfn(internal)
+    RETURNS ${store}
+    AS '${extname}' ,'${store}_avl_finalfn'
     LANGUAGE C IMMUTABLE;
 
 CREATE AGGREGATE SUM (
     sfunc = istore_sum_transfn,
-    basetype = ${store_type},
+    basetype = ${store},
     stype = internal,
-    finalfunc = bigistore_agg_finalfn_pairs  /* Note that we use bigistore version
-                                              * of the function in both istore
-                                              * and bigistore */
+    finalfunc = ${store}_agg_finalfn_pairs
 );
 
 CREATE AGGREGATE MIN (
     sfunc = istore_min_transfn,
-    basetype = ${store_type},
+    basetype = ${store},
     stype = internal,
-    finalfunc = ${store_type}_agg_finalfn_pairs
+    finalfunc = ${store}_agg_finalfn_pairs
 );
 
 CREATE AGGREGATE MAX (
     sfunc = istore_max_transfn,
-    basetype = ${store_type},
+    basetype = ${store},
     stype = internal,
-    finalfunc = ${store_type}_agg_finalfn_pairs
+    finalfunc = ${store}_agg_finalfn_pairs
 );
 
 CREATE AGGREGATE ISAGG(key ${keytype}, value ${valtype}) (
-    sfunc = ${store_type}_avl_transfn,
+    sfunc = ${store}_avl_transfn,
     stype = internal,
-    finalfunc = ${store_type}_avl_finalfn
+    finalfunc = ${store}_avl_finalfn
 );
 
-/* ${store_type} operators */
+/* ${store} operators */
 CREATE OPERATOR -> (
-    leftarg   = ${store_type},
+    leftarg   = ${store},
     rightarg  = ${keytype},
     procedure = fetchval
 );
 
 CREATE OPERATOR ? (
-    leftarg   = ${store_type},
+    leftarg   = ${store},
     rightarg  = ${keytype},
     procedure = exist
 );
 
 CREATE OPERATOR + (
-    leftarg   = ${store_type},
-    rightarg  = ${store_type},
+    leftarg   = ${store},
+    rightarg  = ${store},
     procedure = add
 );
 
 CREATE OPERATOR + (
-    leftarg   = ${store_type},
+    leftarg   = ${store},
     rightarg  = ${valtype},
     procedure = add
 );
 
 CREATE OPERATOR - (
-    leftarg   = ${store_type},
-    rightarg  = ${store_type},
+    leftarg   = ${store},
+    rightarg  = ${store},
     procedure = subtract
 );
 
 CREATE OPERATOR - (
-    leftarg   = ${store_type},
+    leftarg   = ${store},
     rightarg  = ${valtype},
     procedure = subtract
 );
 
 CREATE OPERATOR * (
-    leftarg   = ${store_type},
-    rightarg  = ${store_type},
+    leftarg   = ${store},
+    rightarg  = ${store},
     procedure = multiply
 );
 
 CREATE OPERATOR * (
-    leftarg   = ${store_type},
+    leftarg   = ${store},
     rightarg  = ${valtype},
     procedure = multiply
 );
 
 CREATE OPERATOR / (
-    leftarg   = ${store_type},
-    rightarg  = ${store_type},
+    leftarg   = ${store},
+    rightarg  = ${store},
     procedure = divide
 );
 
 CREATE OPERATOR / (
-    leftarg   = ${store_type},
+    leftarg   = ${store},
     rightarg  = ${valtype},
     procedure = divide
 );
 
 CREATE OPERATOR -> (
-    leftarg   = ${store_type},
+    leftarg   = ${store},
     rightarg  = ${keytype}[],
     procedure = slice_array
 );
 
-CREATE OPERATOR %% (
-    rightarg  = ${store_type},
-    procedure = istore_to_array
-);
-
-CREATE OPERATOR %# (
-    rightarg  = ${store_type},
-    procedure = istore_to_matrix
-);
-
 CREATE OPERATOR ?& (
-    leftarg   = ${store_type},
+    leftarg   = ${store},
     rightarg  = ${keytype}[],
     procedure = exists_all
 );
 
 CREATE OPERATOR ?| (
-    leftarg   = ${store_type},
+    leftarg   = ${store},
     rightarg  = ${keytype}[],
     procedure = exists_any
 );
 
 CREATE OPERATOR || (
-    leftarg   = ${store_type},
-    rightarg  = ${store_type},
+    leftarg   = ${store},
+    rightarg  = ${store},
     procedure = concat
 );
 
-%}
+CREATE FUNCTION ${store}(${keytype}[], ${valtype}[])
+    RETURNS ${store}
+    AS '${extname}', '${store}_array_add'
+    LANGUAGE C IMMUTABLE STRICT;
 
 /*
  * GIN index support
  */
-CREATE FUNCTION gin_extract_istore_key(internal, internal)
+CREATE FUNCTION gin_extract_${store}_key(internal, internal)
 RETURNS internal
-AS 'istore'
+AS '${extname}'
 LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION gin_extract_istore_key_query(internal, internal, int2, internal, internal)
-RETURNS internal
-AS 'istore'
-LANGUAGE C IMMUTABLE STRICT;
-
-CREATE FUNCTION gin_consistent_istore_key(internal, int2, internal, int4, internal, internal)
-RETURNS bool
-AS 'istore'
-LANGUAGE C IMMUTABLE STRICT;
-
-CREATE OPERATOR CLASS istore_key_ops
-DEFAULT FOR TYPE istore USING gin
+CREATE OPERATOR CLASS ${store}_key_ops
+DEFAULT FOR TYPE ${store} USING gin
 AS
-    OPERATOR 9 ?(istore, integer),
-    FUNCTION 1 btint4cmp(integer, integer),
-    FUNCTION 2 gin_extract_istore_key(internal, internal),
+    OPERATOR 9 ?(${store}, ${keytype}),
+    FUNCTION 1 btint${keysize}cmp(${keytype}, ${keytype}),
+    FUNCTION 2 gin_extract_${store}_key(internal, internal),
     FUNCTION 3 gin_extract_istore_key_query(internal, internal, int2, internal, internal),
     FUNCTION 4 gin_consistent_istore_key(internal, int2, internal, int4, internal, internal),
     STORAGE  integer;
 
+%}
+
+
+/*
 CREATE FUNCTION gin_extract_bigistore_key(internal, internal)
 RETURNS internal
-AS 'istore'
+AS '${extname}'
 LANGUAGE C IMMUTABLE STRICT;
 
 CREATE OPERATOR CLASS bigistore_key_ops
@@ -411,18 +389,20 @@ AS
     FUNCTION 3 gin_extract_istore_key_query(internal, internal, int2, internal, internal),
     FUNCTION 4 gin_consistent_istore_key(internal, int2, internal, int4, internal, internal),
     STORAGE  integer;
+*/
 
 /*
  * Cross-type functions and casts
  */
+/*
 CREATE FUNCTION istore(bigistore)
     RETURNS istore
-    AS 'istore', 'bigistore_to_istore'
+    AS '${extname}', 'bigistore_to_istore'
     LANGUAGE C IMMUTABLE STRICT;
 
 CREATE FUNCTION bigistore(istore)
     RETURNS bigistore
-    AS 'istore', 'istore_to_big_istore'
+    AS '${extname}', 'istore_to_big_istore'
     LANGUAGE C IMMUTABLE STRICT;
 
 CREATE CAST (istore as bigistore) WITH FUNCTION bigistore(istore) AS IMPLICIT;
@@ -430,31 +410,31 @@ CREATE CAST (bigistore as istore) WITH FUNCTION istore(bigistore) AS ASSIGNMENT;
 
 CREATE FUNCTION istore(integer[])
     RETURNS istore
-    AS 'istore', 'istore_from_intarray'
+    AS '${extname}', 'istore_from_intarray'
     LANGUAGE C IMMUTABLE STRICT;
 
 CREATE FUNCTION istore(integer[], integer[])
     RETURNS istore
-    AS 'istore', 'istore_array_add'
+    AS '${extname}', 'istore_array_add'
     LANGUAGE C IMMUTABLE STRICT;
 
 CREATE FUNCTION istore(integer[], bigint[])
     RETURNS bigistore
-    AS 'istore', 'bigistore_array_add'
+    AS '${extname}', 'bigistore_array_add'
     LANGUAGE C IMMUTABLE STRICT;
 
 CREATE FUNCTION bigistore(integer[])
     RETURNS bigistore
-    AS 'istore', 'bigistore_from_intarray'
+    AS '${extname}', 'bigistore_from_intarray'
     LANGUAGE C IMMUTABLE STRICT;
 
 CREATE FUNCTION bigistore(integer[], integer[])
     RETURNS bigistore
-    AS 'istore', 'bigistore_array_add'
+    AS '${extname}', 'bigistore_array_add'
     LANGUAGE C IMMUTABLE STRICT;
 
 CREATE FUNCTION bigistore(integer[], bigint[])
     RETURNS bigistore
-    AS 'istore', 'bigistore_array_add'
+    AS '${extname}', 'bigistore_array_add'
     LANGUAGE C IMMUTABLE STRICT;
-
+*/
