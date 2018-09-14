@@ -102,7 +102,7 @@ DATA_built = $extname--\$(EXTVERSION).sql
 DATA = \$(wildcard *--*.sql)
 PGXS := \$(shell \$(PG_CONFIG) --pgxs)
 MODULE_big = $extname
-OBJS = src/avl.o src/is_parser.o src/istore_cast.o src/istore_io.o src/istore_key_gin.o src/pairs.o src/istore_agg.o src/istore_type.o
+OBJS = src/avl.o src/is_parser.o src/istore_io.o src/istore_key_gin.o src/pairs.o src/istore_agg.o src/istore_type.o
 TESTS        = \$(wildcard test/sql/*.sql)
 REGRESS      = \$(patsubst test/sql/%.sql,%,\$(TESTS))
 REGRESS_OPTS = --inputdir=test --load-language=plpgsql
