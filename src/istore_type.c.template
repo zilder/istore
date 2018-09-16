@@ -5,6 +5,7 @@
 #include "catalog/pg_type.h"
 #include "funcapi.h"
 #include "libpq/pqformat.h"
+#include "parser/parse_type.h"
 #include "utils/array.h"
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
@@ -518,9 +519,14 @@ ${store_lower}_add_from_int_arrays(ArrayType *input1, ArrayType *input2)
     AvlNode     *position;
     Key          key;
     Val          value;
+    Oid          keyoid;
+    int32        typmod;
 
     i_eltype1 = ARR_ELEMTYPE(input1);
     i_eltype2 = ARR_ELEMTYPE(input2);
+
+    /* TODO: Make global variable and lazy initialization */
+    parseTypeString("${keysql}", &keyoid, &typmod, false);
 
     get_typlenbyvalalign(i_eltype1, &i_typlen1, &i_typbyval1, &i_typalign1);
 
@@ -547,7 +553,7 @@ ${store_lower}_add_from_int_arrays(ArrayType *input1, ArrayType *input2)
             case INT8OID: key = DatumGetInt64(i_data1[i]); break;
             default: elog(ERROR, "unsupported array type");
         }*/
-        if (i_eltype1 == ${keyoid})
+        if (i_eltype1 == keyoid)
             key = DatumGetInt${keybits}(i_data1[i]);
         else
             elog(ERROR, "unsupported array type");
@@ -839,13 +845,17 @@ STORE_FUNCTION(akeys)
     Datum      *d;
     ArrayType  *a;
     int         index;
+    Oid         keyoid;
+    int32       typmod;
 
     is    = PG_GETARG_STORE(0);
     index = 0;
 
+    parseTypeString("${keysql}", &keyoid, &typmod, false);
+
     if (is->len == 0)
     {
-        a = construct_empty_array(${keyoid});
+        a = construct_empty_array(keyoid);
         PG_RETURN_POINTER(a);
     }
 
@@ -858,7 +868,7 @@ STORE_FUNCTION(akeys)
         ++index;
     }
 
-    a = construct_array(d, is->len, ${keyoid}, sizeof(Key), true, 'i');
+    a = construct_array(d, is->len, keyoid, sizeof(Key), true, 'i');
     PG_RETURN_POINTER(a);
 }
 

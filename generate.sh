@@ -11,6 +11,7 @@
 #
 
 extname=mystore      # defualt extension name
+dependencies=''
 declare -a types=()
 
 # load config
@@ -41,7 +42,8 @@ generate_sql() {
         code+=`echo "$t" | sed -e "s/\\${store}/${store}/g" \
                                -e "s/\\${keysize}/${arrptr[keysize]}/g" \
                                -e "s/\\${keytype}/${keytype}/g" \
-                               -e "s/\\${valtype}/${valtype}/g"`
+                               -e "s/\\${valtype}/${valtype}/g" \
+                               -e "s/\\${keycmp}/${arrptr[key_cmp_f]}/g"`
     done
 
     # Replace template between {% and %} with generated code. Also put
@@ -81,9 +83,9 @@ generate_c() {
                                -e "s/\\${valbits}/${valbits}/g" \
                                -e "s/\\${keytype}/int${keybits}/g" \
                                -e "s/\\${valtype}/int${valbits}/g" \
+                               -e "s/\\${keysql}/${arrptr[key_sql_type]}/g" \
                                -e "s/\\${keyin}/${arrptr[key_in_f]}/g" \
-                               -e "s/\\${keyout}/${arrptr[key_out_f]}/g" \
-                               -e "s/\\${keyoid}/${arrptr[key_oid]}/g"`
+                               -e "s/\\${keyout}/${arrptr[key_out_f]}/g"`
     done
 
     # replace template between {% and %} with generated code
@@ -120,6 +122,7 @@ comment = 'an integer based hstore'
 default_version = '1.0'
 relocatable = true
 module_pathname = '\$libdir/$extname'
+requires = '$dependencies'
 EOL
 }
 

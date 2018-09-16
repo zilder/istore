@@ -365,7 +365,7 @@ CREATE OPERATOR CLASS ${store}_key_ops
 DEFAULT FOR TYPE ${store} USING gin
 AS
     OPERATOR 9 ?(${store}, ${keytype}),
-    FUNCTION 1 btint${keysize}cmp(${keytype}, ${keytype}),
+    FUNCTION 1 ${keycmp}(${keytype}, ${keytype}),
     FUNCTION 2 gin_extract_${store}_key(internal, internal),
     FUNCTION 3 gin_extract_istore_key_query(internal, internal, int2, internal, internal),
     FUNCTION 4 gin_consistent_istore_key(internal, int2, internal, int4, internal, internal),

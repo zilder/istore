@@ -23,6 +23,13 @@
 #define ValueGetDatum Int${valbits}GetDatum
 #define PG_GETARG_STORE PG_GETARG_${store_upper}
 
+/*
+ * Declare in and out functions. They should be defined somewhere else (in
+ * PostgreSQL itself or in extension's shared library)
+ */
+Datum ${keyout}(PG_FUNCTION_ARGS);
+Datum ${keyin}(PG_FUNCTION_ARGS);
+
 PG_FUNCTION_INFO_V1(${store_lower}_out);
 Datum
 ${store_lower}_out(PG_FUNCTION_ARGS)
