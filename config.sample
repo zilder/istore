@@ -1,8 +1,11 @@
 # Extension name
 extname=mystore
 
-# Extensions that must be installed
-dependencies=''
+# Extensions that must be installed before
+dependencies=
+
+# Shared library flags (-L, -l)
+libs=
 
 # To add new type just create a new associative array as follows:
 #

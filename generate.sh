@@ -11,7 +11,8 @@
 #
 
 extname=mystore      # defualt extension name
-dependencies=''
+dependencies=
+libs=
 declare -a types=()
 
 # load config
@@ -108,7 +109,8 @@ OBJS = src/avl.o src/is_parser.o src/istore_io.o src/istore_key_gin.o src/pairs.
 TESTS        = \$(wildcard test/sql/*.sql)
 REGRESS      = \$(patsubst test/sql/%.sql,%,\$(TESTS))
 REGRESS_OPTS = --inputdir=test --load-language=plpgsql
-PG_CPPFLAGS  = --std=c99
+PG_CPPFLAGS += --std=c99
+SHLIB_LINK  += $libs
 include \$(PGXS)
 $extname--\$(EXTVERSION).sql: sql/types.sql sql/istore.sql sql/x-parallel.sql
 	cat \$^ >\$@
