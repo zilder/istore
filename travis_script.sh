@@ -12,6 +12,9 @@ status=0
 CLUSTER_PATH=$(pwd)/travis_cluster
 initdb -D $CLUSTER_PATH -U $USER -A trust
 
+# generate test extension
+./generate.sh test/config
+
 # build and install extension
 make CFLAGS_SL="$(pg_config --cflags_sl) -coverage" || status=$?
 sudo make install || status=$?
