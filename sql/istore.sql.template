@@ -5,7 +5,7 @@ LANGUAGE C IMMUTABLE STRICT;
 
 CREATE FUNCTION ${extname}_gin_consistent_istore_key(internal, int2, internal, int4, internal, internal)
 RETURNS bool
-AS '${extname}', 'gin_extract_istore_key_query'
+AS '${extname}', 'gin_consistent_istore_key'
 LANGUAGE C IMMUTABLE STRICT;
 
 {%
