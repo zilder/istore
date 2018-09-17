@@ -1,11 +1,11 @@
-CREATE FUNCTION gin_extract_istore_key_query(internal, internal, int2, internal, internal)
+CREATE OR REPLACE FUNCTION ${extname}_gin_extract_istore_key_query(internal, internal, int2, internal, internal)
 RETURNS internal
-AS '${extname}'
+AS '${extname}', 'gin_extract_istore_key_query'
 LANGUAGE C IMMUTABLE STRICT;
 
-CREATE FUNCTION gin_consistent_istore_key(internal, int2, internal, int4, internal, internal)
+CREATE FUNCTION ${extname}_gin_consistent_istore_key(internal, int2, internal, int4, internal, internal)
 RETURNS bool
-AS '${extname}'
+AS '${extname}', 'gin_extract_istore_key_query'
 LANGUAGE C IMMUTABLE STRICT;
 
 {%
@@ -367,8 +367,8 @@ AS
     OPERATOR 9 ?(${store}, ${keytype}),
     FUNCTION 1 ${keycmp}(${keytype}, ${keytype}),
     FUNCTION 2 gin_extract_${store}_key(internal, internal),
-    FUNCTION 3 gin_extract_istore_key_query(internal, internal, int2, internal, internal),
-    FUNCTION 4 gin_consistent_istore_key(internal, int2, internal, int4, internal, internal),
+    FUNCTION 3 ${extname}_gin_extract_istore_key_query(internal, internal, int2, internal, internal),
+    FUNCTION 4 ${extname}_gin_consistent_istore_key(internal, int2, internal, int4, internal, internal),
     STORAGE  integer;
 
 %}

@@ -3,29 +3,29 @@ DECLARE version_num integer;
 BEGIN
   SELECT current_setting('server_version_num') INTO STRICT version_num;
   IF version_num > 90600 THEN
-    EXECUTE 'CREATE FUNCTION istore_agg_sum_combine(internal, internal)
+    EXECUTE 'CREATE FUNCTION ${extname}_agg_sum_combine(internal, internal)
         RETURNS internal
-        AS ''${extname}''
+        AS ''${extname}'', ''istore_agg_sum_combine''
         LANGUAGE C IMMUTABLE PARALLEL SAFE';
 
-    EXECUTE 'CREATE FUNCTION istore_agg_max_combine(internal, internal)
+    EXECUTE 'CREATE FUNCTION ${extname}_agg_max_combine(internal, internal)
         RETURNS internal
-        AS ''${extname}''
+        AS ''${extname}'', ''istore_agg_max_combine''
         LANGUAGE C IMMUTABLE PARALLEL SAFE';
 
-    EXECUTE 'CREATE FUNCTION istore_agg_min_combine(internal, internal)
+    EXECUTE 'CREATE FUNCTION ${extname}_agg_min_combine(internal, internal)
         RETURNS internal
-        AS ''${extname}''
+        AS ''${extname}'', ''istore_agg_min_combine''
         LANGUAGE C IMMUTABLE PARALLEL SAFE';
 
-    EXECUTE 'CREATE FUNCTION istore_agg_serial(internal)
+    EXECUTE 'CREATE FUNCTION ${extname}_agg_serial(internal)
         RETURNS bytea
-        AS ''${extname}''
+        AS ''${extname}'', ''istore_agg_serial''
         LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE';
 
-    EXECUTE 'CREATE FUNCTION istore_agg_deserial(bytea, internal)
+    EXECUTE 'CREATE FUNCTION ${extname}_agg_deserial(bytea, internal)
         RETURNS internal
-        AS ''${extname}''
+        AS ''${extname}'', ''istore_agg_deserial''
         LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE';
 {%
 
@@ -91,9 +91,9 @@ BEGIN
         sfunc = istore_sum_transfn,
         stype = internal,
         finalfunc = ${store}_agg_finalfn_pairs,
-        combinefunc = istore_agg_sum_combine,
-        serialfunc = istore_agg_serial,
-        deserialfunc = istore_agg_deserial,
+        combinefunc = ${extname}_agg_sum_combine,
+        serialfunc = ${extname}_agg_serial,
+        deserialfunc = ${extname}_agg_deserial,
         parallel = SAFE
     )';
 
@@ -101,9 +101,9 @@ BEGIN
         sfunc = istore_min_transfn,
         stype = internal,
         finalfunc = ${store}_agg_finalfn_pairs,
-        combinefunc = istore_agg_min_combine,
-        serialfunc = istore_agg_serial,
-        deserialfunc = istore_agg_deserial,
+        combinefunc = ${extname}_agg_min_combine,
+        serialfunc = ${extname}_agg_serial,
+        deserialfunc = ${extname}_agg_deserial,
         parallel = SAFE
     )';
 
@@ -111,9 +111,9 @@ BEGIN
         sfunc = istore_max_transfn,
         stype = internal,
         finalfunc = ${store}_agg_finalfn_pairs,
-        combinefunc = istore_agg_max_combine,
-        serialfunc = istore_agg_serial,
-        deserialfunc = istore_agg_deserial,
+        combinefunc = ${extname}_agg_max_combine,
+        serialfunc = ${extname}_agg_serial,
+        deserialfunc = ${extname}_agg_deserial,
         parallel = SAFE
     )';
 
