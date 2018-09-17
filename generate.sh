@@ -36,7 +36,7 @@ generate_sql() {
     do
         declare -nl arrptr="$arrname"
         store=`echo "${arrptr[name]}" | tr '[:upper:]' '[:lower:]'`
-        keytype="${arrptr[sql_key_type]}"
+        keytype="${arrptr[key_sql_type]}"
         valtype="int${arrptr[valsize]}"
 
         # replace template params with apropriate values
