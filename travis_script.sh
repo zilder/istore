@@ -30,7 +30,7 @@ PGUSER=$USER make installcheck || status=$?
 if test -f regression.diffs; then cat regression.diffs; fi
 
 # build coverage files
-gcov src/*.c src/*.h
+gcov src/*.c
 
 # return the exit status
 exit $status
