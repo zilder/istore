@@ -3,10 +3,13 @@
  */
 
 #include "istore.h"
+
+#include "fmgr.h"
 #include "is_parser.h"
 #include "libpq/pqformat.h"
-#include "fmgr.h"
 #include "utils/builtins.h"
+#include "utils/int8.h"
+
 {%
 
 

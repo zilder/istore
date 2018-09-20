@@ -10,6 +10,7 @@
 
 #include "avl.h"
 #include "utils/builtins.h"
+#include "utils/int8.h"
 
 #define MAX(_a, _b) ((_a > _b) ? _a : _b)
 #define COMPARE(_a, _b) ((_a == _b) ? 0 : ((_a < _b) ? -1 : 1))

@@ -9,6 +9,8 @@
 #include "utils/array.h"
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
+#include "utils/int8.h"
+
 
 PG_MODULE_MAGIC;
 
