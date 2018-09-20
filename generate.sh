@@ -102,7 +102,6 @@ EXTENSION = $extname
 EXTVERSION = 1.0
 PG_CONFIG ?= pg_config
 DATA_built = $extname--\$(EXTVERSION).sql
-DATA = \$(wildcard *--*.sql)
 PGXS := \$(shell \$(PG_CONFIG) --pgxs)
 MODULE_big = $extname
 OBJS = src/avl.o src/is_parser.o src/istore_io.o src/istore_key_gin.o src/pairs.o src/istore_agg.o src/istore_type.o
